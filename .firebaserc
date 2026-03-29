@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "medicalsales-d1787"
+  },
+  "targets": {
+    "medicalsales-d1787": {
+      "hosting": {
+        "weathermyway": [
+          "weathermyway"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
