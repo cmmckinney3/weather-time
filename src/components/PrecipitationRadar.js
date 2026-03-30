@@ -48,7 +48,7 @@ const PrecipitationRadar = ({ weather }) => {
     return forecast.forecastday.map((day, index) => {
       const dayName = index === 0 ? 'Today' : 
                     index === 1 ? 'Tomorrow' : 
-                    new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                    new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
       
       return {
         day: dayName,
@@ -128,7 +128,7 @@ const PrecipitationRadar = ({ weather }) => {
           {forecast.forecastday.map((day, index) => {
             const dayName = index === 0 ? 'Today' : 
                           index === 1 ? 'Tomorrow' : 
-                          new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                          new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
             return (
               <button

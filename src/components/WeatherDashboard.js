@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Droplets, ThermometerSun, ThermometerSnowflake, Calendar, MapPin, Clock, X, ChevronRight, Umbrella, EyeIcon, Wind, Cloud } from 'lucide-react';
-import { getWeatherIcon, formatTime, getDayName, filterHourlyData, getPrecipitationSummary } from '../utils/weatherUtils';
+import { Droplets, ThermometerSun, ThermometerSnowflake, Calendar, MapPin, Clock, X, ChevronRight, Wind, Cloud } from 'lucide-react';
+import { getWeatherIcon, formatTime, getDayName, filterHourlyData } from '../utils/weatherUtils';
 import PrecipitationInfo, { HourlyPrecipIndicator } from './shared/PrecipitationInfo';
 
 const WeatherDashboard = ({ weather }) => {
@@ -118,8 +118,6 @@ const WeatherDashboard = ({ weather }) => {
                         const dayName = getDayName(index, day.date);
                         const isExpanded = expandedDay === index;
                         const hourlyData = isExpanded ? getHourlyData(index) : [];
-                        const precipSummary = getPrecipitationSummary(day);
-
                         return (
                             <div
                                 key={day.date}

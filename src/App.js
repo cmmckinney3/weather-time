@@ -79,7 +79,7 @@ function App() {
           const { latitude, longitude } = position.coords;
           fetchWeatherByCoords(latitude, longitude);
         },
-        (err) => {
+        () => {
           setError("Unable to retrieve your location. Please search manually.");
           setLoading(false);
         }
@@ -110,18 +110,13 @@ function App() {
     }
   };
 
-  const getWeather = async () => {
-    if (!city.trim()) {
-      setError("Please enter a city name");
-      return;
-    }
-
+  const fetchWeatherForCity = async (cityName) => {
     setLoading(true);
     setError(null);
 
     try {
       const res = await fetch(
-        `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${city}&days=3&aqi=yes&alerts=yes`
+        `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${encodeURIComponent(cityName)}&days=3&aqi=yes&alerts=yes`
       );
 
       if (!res.ok) {
@@ -138,12 +133,20 @@ function App() {
     }
   };
 
+  const getWeather = () => {
+    if (!city.trim()) {
+      setError("Please enter a city name");
+      return;
+    }
+    fetchWeatherForCity(city);
+  };
+
   // Process weather data - just use what the API gives us
   const processWeatherData = (data) => {
     setWeather(data);
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       getWeather();
     }
@@ -172,7 +175,7 @@ function App() {
               placeholder="Enter city, zip code, or location"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
               className="w-full pl-10 pr-16 py-3 rounded-lg border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             <button
@@ -222,7 +225,7 @@ function App() {
                   key={popularCity}
                   onClick={() => {
                     setCity(popularCity);
-                    setTimeout(() => getWeather(), 100);
+                    fetchWeatherForCity(popularCity);
                   }}
                   className="bg-gradient-to-r from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 rounded-lg p-4 text-center shadow-sm transition-all duration-300 hover:shadow-md"
                 >

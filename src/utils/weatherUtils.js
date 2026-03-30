@@ -44,10 +44,11 @@ export const formatTime = (dateTimeStr) => {
 export const getDayName = (index, dateStr) => {
   if (index === 0) return 'Today';
   if (index === 1) return 'Tomorrow';
-  return new Date(dateStr).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    month: 'short', 
-    day: 'numeric' 
+  // Append T12:00:00 to parse as local noon, avoiding UTC-offset date shift
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric'
   });
 };
 
@@ -60,10 +61,11 @@ export const getDayName = (index, dateStr) => {
 export const getShortDayName = (index, dateStr) => {
   if (index === 0) return 'Today';
   if (index === 1) return 'Tomorrow';
-  return new Date(dateStr).toLocaleDateString('en-US', { 
-    weekday: 'short', 
-    month: 'short', 
-    day: 'numeric' 
+  // Append T12:00:00 to parse as local noon, avoiding UTC-offset date shift
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
   });
 };
 
@@ -109,7 +111,7 @@ export const getPrecipitationIntensity = (chanceOfRain) => {
     return { level: 'high', color: 'text-blue-600', bg: 'bg-blue-50', label: 'High' };
   }
   if (chanceOfRain >= 30) {
-    return { level: 'moderate', color: 'text-blue-500', bg: 'bg-blue-25', label: 'Moderate' };
+    return { level: 'moderate', color: 'text-blue-500', bg: 'bg-blue-50', label: 'Moderate' };
   }
   if (chanceOfRain > 0) {
     return { level: 'low', color: 'text-blue-400', bg: 'bg-gray-50', label: 'Low' };

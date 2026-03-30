@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Wind, Umbrella, CalendarDays } from 'lucide-react';
+import { Wind, CalendarDays } from 'lucide-react';
 import { getWeatherIcon, formatTime, getShortDayName, filterHourlyData, getPrecipitationSummary } from '../utils/weatherUtils';
 import PrecipitationInfo from './shared/PrecipitationInfo';
 
@@ -11,15 +11,14 @@ const DetailedForecast = ({ weather }) => {
 
     const { forecast } = weather;
     
-    // Skip the first day (index 0) as it might be yesterday's data
-    // Only show forecast days 1, 2, 3 (today, tomorrow, day after)
-    const relevantDays = forecast.forecastday.slice(1);
-    
-    // Get selected day's data (adjusted for the slice)
+    // forecastday[0] is always today per WeatherAPI
+    const relevantDays = forecast.forecastday;
+
+    // Get selected day's data
     const dayData = relevantDays[selectedDay];
     const precipSummary = getPrecipitationSummary(dayData);
-    
-    // Get filtered hourly data
+
+    // Get filtered hourly data (pass real day index so today filters past hours correctly)
     const filteredHours = filterHourlyData(dayData.hour, selectedDay);
     
     // Map hourly data for display
