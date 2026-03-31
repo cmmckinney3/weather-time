@@ -4,7 +4,7 @@ import { Wind, CalendarDays } from 'lucide-react';
 import { getWeatherIcon, formatTime, getShortDayName, filterHourlyData, getPrecipitationSummary } from '../utils/weatherUtils';
 import PrecipitationInfo from './shared/PrecipitationInfo';
 
-const DetailedForecast = ({ weather }) => {
+const DetailedForecast = ({ weather, tempUnit = "F" }) => {
     const [selectedDay, setSelectedDay] = useState(0);
 
     if (!weather) return null;
@@ -24,8 +24,8 @@ const DetailedForecast = ({ weather }) => {
     // Map hourly data for display
     const formattedHourlyData = filteredHours.map(hour => ({
         time: formatTime(hour.time),
-        temp: hour.temp_f,
-        feelsLike: hour.feelslike_f,
+        temp: tempUnit === "F" ? hour.temp_f : hour.temp_c,
+        feelsLike: tempUnit === "F" ? hour.feelslike_f : hour.feelslike_c,
         condition: hour.condition.text,
         chanceOfRain: hour.chance_of_rain,
         precipAmount: hour.precip_in,
@@ -77,7 +77,7 @@ const DetailedForecast = ({ weather }) => {
                         <div>
                             <p className="text-lg font-semibold text-gray-800">{dayData.day.condition.text}</p>
                             <p className="text-gray-600">
-                                High: {dayData.day.maxtemp_f}°F | Low: {dayData.day.mintemp_f}°F
+                                High: {tempUnit === "F" ? `${dayData.day.maxtemp_f}°F` : `${dayData.day.maxtemp_c}°C`} | Low: {tempUnit === "F" ? `${dayData.day.mintemp_f}°F` : `${dayData.day.mintemp_c}°C`}
                             </p>
                         </div>
                     </div>
@@ -104,7 +104,7 @@ const DetailedForecast = ({ weather }) => {
                         <LineChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="time" />
-                            <YAxis unit="°F" />
+                            <YAxis unit={tempUnit === "F" ? "°F" : "°C"} />
                             <Tooltip />
                             <Legend />
                             <Line
@@ -123,6 +123,7 @@ const DetailedForecast = ({ weather }) => {
                                 dot={{ r: 4 }}
                                 activeDot={{ r: 6 }}
                             />
+
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
@@ -154,8 +155,8 @@ const DetailedForecast = ({ weather }) => {
                                                 <img src={hour.icon} alt={hour.condition} className="w-8 h-8 mr-2" />
                                                 {hour.condition}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{hour.temp}°F</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{hour.feelsLike}°F</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{hour.temp}°{tempUnit}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{hour.feelsLike}°{tempUnit}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 <div className="flex flex-col">
                                                     <span className="text-blue-600 font-medium">{hour.chanceOfRain}%</span>

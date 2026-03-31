@@ -4,7 +4,7 @@ import DetailedForecast from './DetailedForecast';
 import WeatherConditionsWidget from './WeatherConditionsWidget';
 import PrecipitationRadar from './PrecipitationRadar';
 
-const WeatherAppLayout = ({ weather }) => {
+const WeatherAppLayout = ({ weather, tempUnit }) => {
   const [activeView, setActiveView] = useState('dashboard');
 
   if (!weather) return null;
@@ -17,7 +17,7 @@ const WeatherAppLayout = ({ weather }) => {
         
         {/* View selector */}
         <div className="flex justify-center mb-8">
-          <div className="inline-flex bg-white rounded-lg shadow-md p-1">
+          <div className="flex flex-wrap justify-center gap-1 bg-white rounded-lg shadow-md p-1">
             <button
               onClick={() => setActiveView('dashboard')}
               className={`px-4 py-2 rounded-md font-medium transition-colors ${
@@ -63,9 +63,9 @@ const WeatherAppLayout = ({ weather }) => {
         
         {/* Active view */}
         <div className="mb-8">
-          {activeView === 'dashboard' && <WeatherDashboard weather={weather} />}
-          {activeView === 'forecast' && <DetailedForecast weather={weather} />}
-          {activeView === 'conditions' && <WeatherConditionsWidget weather={weather} />}
+          {activeView === 'dashboard' && <WeatherDashboard weather={weather} tempUnit={tempUnit} />}
+          {activeView === 'forecast' && <DetailedForecast weather={weather} tempUnit={tempUnit} />}
+          {activeView === 'conditions' && <WeatherConditionsWidget weather={weather} tempUnit={tempUnit} />}
           {activeView === 'precipitation' && <PrecipitationRadar weather={weather} />}
         </div>
       </div>

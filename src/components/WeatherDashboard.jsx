@@ -3,7 +3,7 @@ import { Droplets, ThermometerSun, ThermometerSnowflake, Calendar, MapPin, Clock
 import { getWeatherIcon, formatTime, getDayName, filterHourlyData } from '../utils/weatherUtils';
 import PrecipitationInfo, { HourlyPrecipIndicator } from './shared/PrecipitationInfo';
 
-const WeatherDashboard = ({ weather }) => {
+const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
     const [expandedDay, setExpandedDay] = useState(null);
 
     if (!weather) return null;
@@ -28,8 +28,8 @@ const WeatherDashboard = ({ weather }) => {
 
         return filteredHours.map(hour => ({
             time: formatTime(hour.time),
-            temp: hour.temp_f,
-            feelsLike: hour.feelslike_f,
+            temp: tempUnit === "F" ? hour.temp_f : hour.temp_c,
+            feelsLike: tempUnit === "F" ? hour.feelslike_f : hour.feelslike_c,
             condition: hour.condition.text,
             icon: hour.condition.icon,
             chanceOfRain: hour.chance_of_rain,
@@ -65,7 +65,9 @@ const WeatherDashboard = ({ weather }) => {
                             {getWeatherIcon(current.condition)}
                         </div>
                         <div>
-                            <h2 className="text-5xl font-bold text-gray-800">{current.temp_f}°F</h2>
+                            <h2 className="text-5xl font-bold text-gray-800">
+                            {tempUnit === "F" ? `${current.temp_f}°F` : `${current.temp_c}°C`}
+                        </h2>
                             <p className="text-lg text-gray-600">{current.condition.text}</p>
                         </div>
                     </div>
@@ -75,7 +77,9 @@ const WeatherDashboard = ({ weather }) => {
                             <ThermometerSun className="text-orange-500 mr-2" />
                             <div>
                                 <p className="text-sm text-gray-600">Feels like</p>
-                                <p className="font-semibold">{current.feelslike_f}°F</p>
+                                <p className="font-semibold">
+                            {tempUnit === "F" ? `${current.feelslike_f}°F` : `${current.feelslike_c}°C`}
+                        </p>
                             </div>
                         </div>
 
@@ -121,7 +125,7 @@ const WeatherDashboard = ({ weather }) => {
                         return (
                             <div
                                 key={day.date}
-                                className={`bg-gray-50 border border-gray-200 rounded-lg transition-all duration-300 ${isExpanded ? 'transform scale-100' : 'hover:transform hover:scale-102'}`}
+                                className={`bg-gray-50 border border-gray-200 rounded-lg transition-all duration-300 ${isExpanded ? '' : 'hover:shadow-md'}`}
                             >
                                 {/* Card header - always visible */}
                                 <div
@@ -148,11 +152,15 @@ const WeatherDashboard = ({ weather }) => {
                                         <div className="text-right">
                                             <div className="flex items-center justify-end">
                                                 <ThermometerSun className="text-orange-500 mr-1" size={16} />
-                                                <span className="font-semibold">{day.day.maxtemp_f}°</span>
+                                                <span className="font-semibold">
+                                                {tempUnit === "F" ? `${day.day.maxtemp_f}°` : `${day.day.maxtemp_c}°`}
+                                            </span>
                                             </div>
                                             <div className="flex items-center justify-end mt-1">
                                                 <ThermometerSnowflake className="text-blue-500 mr-1" size={16} />
-                                                <span className="font-semibold">{day.day.mintemp_f}°</span>
+                                                <span className="font-semibold">
+                                                {tempUnit === "F" ? `${day.day.mintemp_f}°` : `${day.day.mintemp_c}°`}
+                                            </span>
                                             </div>
                                         </div>
 
@@ -174,7 +182,9 @@ const WeatherDashboard = ({ weather }) => {
                                                 <ul className="space-y-2">
                                                     <li className="flex justify-between">
                                                         <span className="text-gray-600">Avg Temperature:</span>
-                                                        <span className="font-medium">{day.day.avgtemp_f}°F</span>
+                                                        <span className="font-medium">
+                                                        {tempUnit === "F" ? `${day.day.avgtemp_f}°F` : `${day.day.avgtemp_c}°C`}
+                                                    </span>
                                                     </li>
                                                     <li className="flex justify-between">
                                                         <span className="text-gray-600">Avg Humidity:</span>
@@ -268,7 +278,9 @@ const WeatherDashboard = ({ weather }) => {
                                                                 <img src={hour.icon} alt={hour.condition} className="w-6 h-6 mr-2" />
                                                                 <span className="hidden md:inline">{hour.condition}</span>
                                                             </td>
-                                                            <td className="py-2 px-3 whitespace-nowrap text-sm text-gray-500">{hour.temp}°F</td>
+                                                            <td className="py-2 px-3 whitespace-nowrap text-sm text-gray-500">
+                                                            {hour.temp}°{tempUnit}
+                                                        </td>
                                                             <td className="py-2 px-3 whitespace-nowrap text-sm text-gray-500">
                                                                 <HourlyPrecipIndicator hour={hour.hourData} compact={true} />
                                                             </td>
