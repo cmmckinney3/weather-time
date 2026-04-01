@@ -194,7 +194,7 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Search section */}
-        <div className="max-w-2xl mx-auto mb-8 animate-fade-in-up">
+        <div className="max-w-2xl mx-auto mb-8 animate-fade-in-up relative z-20">
           {!weather && (
             <p className="text-center text-slate-400 italic mb-4 text-sm font-display">
               "{quote}"
