@@ -1,55 +1,58 @@
 import React, { useState } from 'react';
 import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Area, AreaChart } from 'recharts';
 import { CloudRain, Droplets, Umbrella, Clock, TrendingUp } from 'lucide-react';
+import { formatTime, filterHourlyData } from '../utils/weatherUtils';
+
+const CockpitTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="glass-panel p-3 text-xs font-mono border border-cockpit-border shadow-lg">
+      <p className="text-slate-400 mb-1">{label}</p>
+      {payload.map((entry, i) => (
+        <p key={i} style={{ color: entry.color }} className="font-semibold">
+          {entry.dataKey === 'chanceOfRain' ? 'Rain Chance' :
+           entry.dataKey === 'precipitation' ? 'Precipitation' : entry.dataKey}:{' '}
+          {entry.value}{entry.dataKey === 'chanceOfRain' ? '%' : entry.dataKey === 'precipitation' ? ' in' : ''}
+        </p>
+      ))}
+    </div>
+  );
+};
 
 const PrecipitationRadar = ({ weather }) => {
   const [selectedDay, setSelectedDay] = useState(0);
-  const [viewMode, setViewMode] = useState('timeline'); // 'timeline', 'intensity', 'daily'
+  const [viewMode, setViewMode] = useState('timeline');
 
   if (!weather) return null;
 
   const { forecast } = weather;
 
-  // Get precipitation data for selected day
+  // FIX: Use shared filterHourlyData instead of duplicating the logic
   const getPrecipitationData = (dayIndex) => {
     const day = forecast.forecastday[dayIndex];
     if (!day) return [];
 
-    let hours = day.hour;
-    
-    // For today, only show current hour onward
-    if (dayIndex === 0) {
-      const currentHour = new Date().getHours();
-      hours = hours.filter(hour => new Date(hour.time).getHours() >= currentHour);
-    }
+    const filteredHours = filterHourlyData(day.hour, dayIndex);
 
-    return hours.map(hour => {
-      const time = new Date(hour.time).toLocaleString('en-US', {
-        hour: 'numeric',
-        hour12: true
-      });
-
-      return {
-        time,
-        timeRaw: new Date(hour.time).getHours(),
-        chanceOfRain: hour.chance_of_rain,
-        precipitation: hour.precip_in,
-        willItRain: hour.will_it_rain,
-        chanceOfSnow: hour.chance_of_snow,
-        willItSnow: hour.will_it_snow,
-        condition: hour.condition.text,
-        icon: hour.condition.icon
-      };
-    });
+    return filteredHours.map(hour => ({
+      time: formatTime(hour.time),
+      timeRaw: new Date(hour.time).getHours(),
+      chanceOfRain: hour.chance_of_rain,
+      precipitation: hour.precip_in,
+      willItRain: hour.will_it_rain,
+      chanceOfSnow: hour.chance_of_snow,
+      willItSnow: hour.will_it_snow,
+      condition: hour.condition.text,
+      icon: hour.condition.icon
+    }));
   };
 
-  // Get daily summary data
   const getDailySummary = () => {
     return forecast.forecastday.map((day, index) => {
-      const dayName = index === 0 ? 'Today' : 
-                    index === 1 ? 'Tomorrow' : 
+      const dayName = index === 0 ? 'Today' :
+                    index === 1 ? 'Tomorrow' :
                     new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-      
+
       return {
         day: dayName,
         totalPrecip: day.day.totalprecip_in,
@@ -65,79 +68,56 @@ const PrecipitationRadar = ({ weather }) => {
   const dailyData = getDailySummary();
   const selectedDayData = forecast.forecastday[selectedDay];
 
-  // Custom tooltip for charts
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-800">{`${label}`}</p>
-          {payload.map((entry, index) => (
-            <p key={index} style={{ color: entry.color }}>
-              {`${entry.dataKey === 'chanceOfRain' ? 'Rain Chance' : 
-                 entry.dataKey === 'precipitation' ? 'Precipitation' : entry.dataKey}: ${entry.value}${
-                entry.dataKey === 'chanceOfRain' ? '%' : 
-                entry.dataKey === 'precipitation' ? ' in' : ''}`}
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
+  const VIEW_MODES = [
+    { id: 'timeline', label: 'Timeline' },
+    { id: 'intensity', label: 'Intensity' },
+    { id: 'daily', label: 'Daily' },
+  ];
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 max-w-4xl w-full mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <CloudRain className="text-blue-600 mr-2" />
-          <h2 className="text-2xl font-bold text-gray-800">Precipitation Forecast</h2>
+    <div className="space-y-4">
+      {/* Header with view selector */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <CloudRain size={14} className="text-ch-magenta" />
+          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-widest font-mono">
+            Precipitation Forecast
+          </h2>
         </div>
-        
-        {/* View mode selector */}
-        <div className="flex bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('timeline')}
-            className={`px-3 py-1 rounded-md text-sm transition-colors ${
-              viewMode === 'timeline' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Timeline
-          </button>
-          <button
-            onClick={() => setViewMode('intensity')}
-            className={`px-3 py-1 rounded-md text-sm transition-colors ${
-              viewMode === 'intensity' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Intensity
-          </button>
-          <button
-            onClick={() => setViewMode('daily')}
-            className={`px-3 py-1 rounded-md text-sm transition-colors ${
-              viewMode === 'daily' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Daily
-          </button>
+
+        <div className="flex items-center gap-1 p-1 glass-panel-flush rounded-lg">
+          {VIEW_MODES.map((mode) => (
+            <button
+              key={mode.id}
+              onClick={() => setViewMode(mode.id)}
+              className={`px-3 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wider transition-all ${
+                viewMode === mode.id
+                  ? 'cockpit-btn-active'
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+              }`}
+            >
+              {mode.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Day selector (for timeline and intensity views) */}
+      {/* Day selector */}
       {viewMode !== 'daily' && (
-        <div className="flex mb-6 overflow-x-auto">
+        <div className="flex items-center gap-1 p-1 glass-panel-flush rounded-xl">
           {forecast.forecastday.map((day, index) => {
-            const dayName = index === 0 ? 'Today' : 
-                          index === 1 ? 'Tomorrow' : 
+            const dayName = index === 0 ? 'Today' :
+                          index === 1 ? 'Tomorrow' :
                           new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-
+            const isActive = selectedDay === index;
             return (
               <button
                 key={day.date}
                 onClick={() => setSelectedDay(index)}
-                className={`px-4 py-2 mr-2 rounded-lg font-medium transition-colors ${
-                  selectedDay === index
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-blue-100'
+                className={`flex-1 px-4 py-2 rounded-lg font-mono text-xs font-medium uppercase tracking-wider transition-all ${
+                  isActive
+                    ? 'cockpit-btn-active'
+                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
                 }`}
               >
                 {dayName}
@@ -147,162 +127,175 @@ const PrecipitationRadar = ({ weather }) => {
         </div>
       )}
 
-      {/* Daily summary card */}
+      {/* Summary card */}
       {viewMode !== 'daily' && selectedDayData && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Umbrella className="text-blue-600 mr-3" size={24} />
-              <div>
-                <h3 className="font-semibold text-gray-800">
-                  {selectedDay === 0 ? "Today's" : selectedDay === 1 ? "Tomorrow's" : "Day's"} Precipitation Summary
-                </h3>
-                <p className="text-gray-600">
-                  {selectedDayData.day.daily_chance_of_rain}% chance of rain • 
-                  {selectedDayData.day.totalprecip_in}" total expected
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-lg font-bold text-blue-600">
-                {selectedDayData.day.daily_will_it_rain ? 'Rain Expected' : 'No Rain Expected'}
+        <div className="glass-panel p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Umbrella size={18} className="text-ch-magenta" />
+            <div>
+              <p className="text-xs font-display font-medium text-slate-300">
+                {selectedDay === 0 ? "Today's" : selectedDay === 1 ? "Tomorrow's" : "Day's"} Summary
               </p>
-              <p className="text-sm text-gray-600">{selectedDayData.day.condition.text}</p>
+              <p className="text-xs text-slate-500 font-mono mt-0.5">
+                {selectedDayData.day.daily_chance_of_rain}% chance &bull; {selectedDayData.day.totalprecip_in}" expected
+              </p>
             </div>
           </div>
+          <span className={`text-xs font-mono font-bold px-3 py-1 rounded-md ${
+            selectedDayData.day.daily_will_it_rain
+              ? 'bg-ch-magenta/15 text-ch-magenta border border-ch-magenta/30'
+              : 'bg-cockpit-panel text-slate-400 border border-cockpit-border'
+          }`}>
+            {selectedDayData.day.daily_will_it_rain ? 'RAIN EXPECTED' : 'NO RAIN'}
+          </span>
         </div>
       )}
 
-      {/* Chart Views */}
-      <div className={`${viewMode === 'daily' ? 'mb-6' : 'h-80 mb-6'}`}>
-        {viewMode === 'timeline' && (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={precipData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="time" />
-              <YAxis />
-              <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="chanceOfRain" 
-                stroke="#3B82F6" 
-                fill="#3B82F6" 
-                fillOpacity={0.3}
-                name="Rain Chance (%)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
+      {/* Charts */}
+      <div className={`glass-panel p-5 ${viewMode === 'daily' ? '' : ''}`}>
+        <div className={viewMode === 'daily' ? '' : 'h-80'}>
+          {viewMode === 'timeline' && (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={precipData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(51, 65, 85, 0.4)" />
+                <XAxis
+                  dataKey="time"
+                  tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono' }}
+                  axisLine={{ stroke: '#334155' }}
+                />
+                <YAxis
+                  tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono' }}
+                  axisLine={{ stroke: '#334155' }}
+                />
+                <Tooltip content={<CockpitTooltip />} />
+                <defs>
+                  <linearGradient id="precipGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f472b6" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#f472b6" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <Area
+                  type="monotone"
+                  dataKey="chanceOfRain"
+                  stroke="#f472b6"
+                  fill="url(#precipGradient)"
+                  strokeWidth={2}
+                  name="Rain Chance (%)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
 
-        {viewMode === 'intensity' && (
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={precipData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="time" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar yAxisId="left" dataKey="chanceOfRain" fill="#3B82F6" name="Rain Chance (%)" />
-              <Line yAxisId="right" type="monotone" dataKey="precipitation" stroke="#1E40AF" strokeWidth={3} name="Precipitation (in)" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        )}
+          {viewMode === 'intensity' && (
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={precipData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(51, 65, 85, 0.4)" />
+                <XAxis
+                  dataKey="time"
+                  tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono' }}
+                  axisLine={{ stroke: '#334155' }}
+                />
+                <YAxis
+                  yAxisId="left"
+                  tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono' }}
+                  axisLine={{ stroke: '#334155' }}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono' }}
+                  axisLine={{ stroke: '#334155' }}
+                />
+                <Tooltip content={<CockpitTooltip />} />
+                <Bar yAxisId="left" dataKey="chanceOfRain" fill="#f472b680" stroke="#f472b6" name="Rain Chance (%)" radius={[3, 3, 0, 0]} />
+                <Line yAxisId="right" type="monotone" dataKey="precipitation" stroke="#22d3ee" strokeWidth={2} name="Precipitation (in)" dot={{ r: 3, fill: '#22d3ee' }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
 
-        {viewMode === 'daily' && (
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {dailyData.map((day, index) => {
-              const maxChance = Math.max(...dailyData.map(d => d.chanceOfRain));
-              const barWidth = (day.chanceOfRain / maxChance) * 100;
-              const precipAmount = day.totalPrecip;
-              const hasSignificantPrecip = precipAmount > 0.1;
-              
-              return (
-                <div key={index} className="bg-gray-50 rounded-lg border border-gray-200 p-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
-                    <div className="flex items-center space-x-3 mb-2 sm:mb-0">
-                      <h3 className="text-base font-semibold text-gray-800 min-w-[80px]">
-                        {day.day}
-                      </h3>
-                      <div className="flex items-center space-x-2">
-                        <span className={`text-xl font-bold ${
-                          day.chanceOfRain >= 70 ? 'text-blue-700' :
-                          day.chanceOfRain >= 40 ? 'text-blue-600' :
-                          day.chanceOfRain >= 20 ? 'text-blue-500' : 'text-gray-400'
+          {viewMode === 'daily' && (
+            <div className="space-y-3">
+              {dailyData.map((day, index) => {
+                const maxChance = Math.max(...dailyData.map(d => d.chanceOfRain), 1);
+                const barWidth = (day.chanceOfRain / maxChance) * 100;
+
+                return (
+                  <div key={index} className="glass-panel-flush rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-mono font-semibold text-slate-200 min-w-[80px]">{day.day}</span>
+                        <span className={`text-lg font-mono font-bold ${
+                          day.chanceOfRain >= 60 ? 'text-ch-magenta glow-magenta' :
+                          day.chanceOfRain >= 30 ? 'text-ch-magenta' : 'text-slate-500'
                         }`}>
                           {day.chanceOfRain}%
                         </span>
-                        <span className="text-xs text-gray-600">rain</span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {day.totalPrecip > 0.1 && (
+                          <span className="text-sm font-mono font-bold text-ch-cyan">{day.totalPrecip}"</span>
+                        )}
+                        <span className={`text-[10px] font-mono font-bold px-2 py-1 rounded border ${
+                          day.willItRain
+                            ? 'bg-ch-magenta/15 text-ch-magenta border-ch-magenta/30'
+                            : 'bg-cockpit-panel text-slate-500 border-cockpit-border'
+                        }`}>
+                          {day.willItRain ? 'EXPECTED' : 'CLEAR'}
+                        </span>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center space-x-3">
-                      {hasSignificantPrecip && (
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-blue-700">{precipAmount}"</p>
-                        </div>
-                      )}
-                      
-                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        day.willItRain 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {day.willItRain ? 'Expected' : 'No Rain'}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Visual precipitation bar */}
-                  <div className="relative mb-2">
-                    <div className="w-full bg-gray-300 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          day.chanceOfRain >= 70 ? 'bg-blue-600' :
-                          day.chanceOfRain >= 40 ? 'bg-blue-500' :
-                          day.chanceOfRain >= 20 ? 'bg-blue-400' : 'bg-gray-400'
+
+                    {/* Bar */}
+                    <div className="w-full bg-cockpit-deep rounded-full h-2 mb-2">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-500 ${
+                          day.chanceOfRain >= 60 ? 'bg-ch-magenta shadow-glow-magenta' :
+                          day.chanceOfRain >= 30 ? 'bg-ch-magenta/70' : 'bg-slate-600'
                         }`}
                         style={{ width: `${barWidth}%` }}
                       />
                     </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                      <span>{day.condition}</span>
+                      {day.chanceOfSnow > 0 && (
+                        <span className="text-blue-300">{day.chanceOfSnow}% snow</span>
+                      )}
+                    </div>
                   </div>
-                  
-                  {/* Additional details */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-gray-600">
-                    <span className="truncate">{day.condition}</span>
-                    {day.chanceOfSnow > 0 && (
-                      <span className="text-blue-600 mt-1 sm:mt-0">
-                        {day.chanceOfSnow}% snow
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Hourly precipitation details (timeline view only) */}
+      {/* Hourly grid (timeline view) */}
       {viewMode === 'timeline' && precipData.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
-            <Clock className="mr-2" size={20} />
-            Hourly Details
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div className="glass-panel p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock size={14} className="text-ch-magenta" />
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest font-mono">Hourly Details</h3>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
             {precipData.slice(0, 12).map((hour, index) => (
-              <div key={index} className="bg-gray-50 rounded-lg p-3 text-center">
-                <p className="text-sm font-medium text-gray-800">{hour.time}</p>
-                <div className="flex items-center justify-center my-2">
-                  <Droplets 
-                    className={`${hour.chanceOfRain > 70 ? 'text-blue-600' : 
-                                 hour.chanceOfRain > 30 ? 'text-blue-400' : 'text-gray-400'}`} 
-                    size={20} 
-                  />
-                </div>
-                <p className="text-xs text-gray-600">{hour.chanceOfRain}%</p>
+              <div key={index} className="glass-panel-flush rounded-lg p-3 text-center">
+                <p className="text-[10px] font-mono text-slate-400 mb-1">{hour.time}</p>
+                <Droplets
+                  size={18}
+                  className={`mx-auto mb-1 ${
+                    hour.chanceOfRain > 70 ? 'text-ch-magenta' :
+                    hour.chanceOfRain > 30 ? 'text-ch-magenta/60' : 'text-slate-600'
+                  }`}
+                />
+                <p className={`text-xs font-mono font-semibold ${
+                  hour.chanceOfRain > 50 ? 'text-ch-magenta' : 'text-slate-400'
+                }`}>
+                  {hour.chanceOfRain}%
+                </p>
                 {hour.precipitation > 0 && (
-                  <p className="text-xs font-medium text-blue-600">{hour.precipitation}"</p>
+                  <p className="text-[10px] font-mono text-ch-cyan mt-0.5">{hour.precipitation}"</p>
                 )}
               </div>
             ))}
@@ -310,17 +303,15 @@ const PrecipitationRadar = ({ weather }) => {
         </div>
       )}
 
-      {/* Rain alerts */}
+      {/* High precip alert */}
       {viewMode !== 'daily' && precipData.some(hour => hour.chanceOfRain > 70) && (
-        <div className="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-          <div className="flex items-start">
-            <TrendingUp className="text-blue-500 mr-2 flex-shrink-0 mt-0.5" size={20} />
-            <div>
-              <h4 className="font-semibold text-blue-800">High Precipitation Alert</h4>
-              <p className="text-sm text-blue-700 mt-1">
-                High chance of precipitation expected today. Consider bringing an umbrella or adjusting outdoor plans.
-              </p>
-            </div>
+        <div className="glass-panel border-l-2 border-l-ch-magenta p-4 flex items-start gap-3">
+          <TrendingUp size={16} className="text-ch-magenta flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-mono font-bold text-ch-magenta mb-1">HIGH PRECIPITATION ALERT</p>
+            <p className="text-xs text-slate-400">
+              Significant precipitation expected. Consider adjusting outdoor plans.
+            </p>
           </div>
         </div>
       )}

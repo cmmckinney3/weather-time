@@ -1,182 +1,190 @@
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Wind, CalendarDays } from 'lucide-react';
+import { Wind, CalendarDays, Droplets } from 'lucide-react';
 import { getWeatherIcon, formatTime, getShortDayName, filterHourlyData, getPrecipitationSummary } from '../utils/weatherUtils';
 import PrecipitationInfo from './shared/PrecipitationInfo';
 
+const CockpitTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="glass-panel p-3 text-xs font-mono border border-cockpit-border shadow-lg">
+      <p className="text-slate-400 mb-1">{label}</p>
+      {payload.map((entry, i) => (
+        <p key={i} style={{ color: entry.color }} className="font-semibold">
+          {entry.name}: {entry.value}°
+        </p>
+      ))}
+    </div>
+  );
+};
+
 const DetailedForecast = ({ weather, tempUnit = "F" }) => {
-    const [selectedDay, setSelectedDay] = useState(0);
+  const [selectedDay, setSelectedDay] = useState(0);
 
-    if (!weather) return null;
+  if (!weather) return null;
 
-    const { forecast } = weather;
-    
-    // forecastday[0] is always today per WeatherAPI
-    const relevantDays = forecast.forecastday;
+  const { forecast } = weather;
+  const relevantDays = forecast.forecastday;
+  const dayData = relevantDays[selectedDay];
+  const precipSummary = getPrecipitationSummary(dayData);
 
-    // Get selected day's data
-    const dayData = relevantDays[selectedDay];
-    const precipSummary = getPrecipitationSummary(dayData);
+  const filteredHours = filterHourlyData(dayData.hour, selectedDay);
 
-    // Get filtered hourly data (pass real day index so today filters past hours correctly)
-    const filteredHours = filterHourlyData(dayData.hour, selectedDay);
-    
-    // Map hourly data for display
-    const formattedHourlyData = filteredHours.map(hour => ({
-        time: formatTime(hour.time),
-        temp: tempUnit === "F" ? hour.temp_f : hour.temp_c,
-        feelsLike: tempUnit === "F" ? hour.feelslike_f : hour.feelslike_c,
-        condition: hour.condition.text,
-        chanceOfRain: hour.chance_of_rain,
-        precipAmount: hour.precip_in,
-        wind: hour.wind_mph,
-        humidity: hour.humidity,
-        icon: hour.condition.icon
-    }));
+  const formattedHourlyData = filteredHours.map(hour => ({
+    time: formatTime(hour.time),
+    temp: tempUnit === "F" ? hour.temp_f : hour.temp_c,
+    feelsLike: tempUnit === "F" ? hour.feelslike_f : hour.feelslike_c,
+    condition: hour.condition.text,
+    chanceOfRain: hour.chance_of_rain,
+    precipAmount: hour.precip_in,
+    wind: hour.wind_mph,
+    humidity: hour.humidity,
+    icon: hour.condition.icon
+  }));
 
-    const chartData = formattedHourlyData.map(hour => ({
-        time: hour.time,
-        Temperature: hour.temp,
-        'Feels Like': hour.feelsLike
-    }));
+  const chartData = formattedHourlyData.map(hour => ({
+    time: hour.time,
+    Temperature: hour.temp,
+    'Feels Like': hour.feelsLike
+  }));
 
-    return (
-        <div className="bg-white rounded-xl shadow-lg p-6 max-w-4xl w-full mx-auto">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                <CalendarDays className="text-indigo-600 mr-2" />
-                Detailed Forecast
-            </h2>
+  return (
+    <div className="space-y-4">
+      {/* Day selector */}
+      <div className="flex items-center gap-1 p-1 glass-panel-flush rounded-xl">
+        {relevantDays.map((day, index) => {
+          const dayName = getShortDayName(index, day.date);
+          const isActive = selectedDay === index;
+          return (
+            <button
+              key={day.date}
+              onClick={() => setSelectedDay(index)}
+              className={`flex-1 px-4 py-2 rounded-lg font-mono text-xs font-medium uppercase tracking-wider transition-all ${
+                isActive
+                  ? 'cockpit-btn-active'
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+              }`}
+            >
+              {dayName}
+            </button>
+          );
+        })}
+      </div>
 
-            {/* Day selector tabs */}
-            <div className="flex mb-6 overflow-x-auto">
-                {relevantDays.map((day, index) => {
-                    const dayName = getShortDayName(index, day.date);
-
-                    return (
-                        <button
-                            key={day.date}
-                            onClick={() => setSelectedDay(index)}
-                            className={`px-4 py-2 mr-2 rounded-t-lg font-medium transition-colors ${selectedDay === index
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-indigo-100'
-                                }`}
-                        >
-                            {dayName}
-                        </button>
-                    );
-                })}
+      {/* Day summary strip */}
+      <div className="glass-panel p-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="p-2 rounded-lg bg-cockpit-deep/50 border border-cockpit-border">
+              {getWeatherIcon(dayData.day.condition, 32)}
             </div>
-
-            {/* Day summary */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-                <div className="flex flex-col md:flex-row items-center justify-between">
-                    <div className="flex items-center mb-4 md:mb-0">
-                        <div className="mr-4">
-                            {getWeatherIcon(dayData.day.condition)}
-                        </div>
-                        <div>
-                            <p className="text-lg font-semibold text-gray-800">{dayData.day.condition.text}</p>
-                            <p className="text-gray-600">
-                                High: {tempUnit === "F" ? `${dayData.day.maxtemp_f}°F` : `${dayData.day.maxtemp_c}°C`} | Low: {tempUnit === "F" ? `${dayData.day.mintemp_f}°F` : `${dayData.day.mintemp_c}°C`}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex items-center">
-                            <Wind className="text-blue-500 mr-2" size={16} />
-                            <div>
-                                <p className="text-sm text-gray-600">Max Wind</p>
-                                <p className="font-semibold">{dayData.day.maxwind_mph} mph</p>
-                            </div>
-                        </div>
-
-                        <PrecipitationInfo dayData={dayData} />
-                    </div>
-                </div>
-            </div>
-
-            {/* Temperature chart */}
-            <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Temperature Trend</h3>
-                <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="time" />
-                            <YAxis unit={tempUnit === "F" ? "°F" : "°C"} />
-                            <Tooltip />
-                            <Legend />
-                            <Line
-                                type="monotone"
-                                dataKey="Temperature"
-                                stroke="#4F46E5"
-                                strokeWidth={2}
-                                dot={{ r: 4 }}
-                                activeDot={{ r: 6 }}
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="Feels Like"
-                                stroke="#EC4899"
-                                strokeWidth={2}
-                                dot={{ r: 4 }}
-                                activeDot={{ r: 6 }}
-                            />
-
-                        </LineChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-
-            {/* Hourly forecast */}
             <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Hourly Forecast</h3>
-                <div className="overflow-x-auto">
-                    <div className="inline-block min-w-full">
-                        <div className="shadow overflow-hidden border-b border-gray-200 rounded-lg">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Condition</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temp</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feels Like</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precipitation</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wind</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Humidity</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {formattedHourlyData.map((hour, i) => (
-                                        <tr key={i} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{hour.time}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex items-center">
-                                                <img src={hour.icon} alt={hour.condition} className="w-8 h-8 mr-2" />
-                                                {hour.condition}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{hour.temp}°{tempUnit}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{hour.feelsLike}°{tempUnit}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                <div className="flex flex-col">
-                                                    <span className="text-blue-600 font-medium">{hour.chanceOfRain}%</span>
-                                                    {hour.precipAmount > 0 && (
-                                                        <span className="text-xs text-blue-800">{hour.precipAmount}"</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{hour.wind} mph</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{hour.humidity}%</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+              <p className="text-sm font-display font-semibold text-slate-200">{dayData.day.condition.text}</p>
+              <div className="flex items-center gap-3 mt-1 font-mono text-xs">
+                <span className="text-ch-red">H: {tempUnit === "F" ? `${dayData.day.maxtemp_f}°F` : `${dayData.day.maxtemp_c}°C`}</span>
+                <span className="text-ch-cyan">L: {tempUnit === "F" ? `${dayData.day.mintemp_f}°F` : `${dayData.day.mintemp_c}°C`}</span>
+              </div>
             </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Wind size={14} className="text-ch-amber" />
+              <span className="text-xs font-mono text-ch-amber">{dayData.day.maxwind_mph} mph</span>
+            </div>
+            <PrecipitationInfo dayData={dayData} />
+          </div>
         </div>
-    );
+      </div>
+
+      {/* Temperature chart */}
+      <div className="glass-panel p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarDays size={14} className="text-ch-cyan" />
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest font-mono">Temperature Trend</h3>
+        </div>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(51, 65, 85, 0.4)" />
+              <XAxis
+                dataKey="time"
+                tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono' }}
+                axisLine={{ stroke: '#334155' }}
+                tickLine={{ stroke: '#334155' }}
+              />
+              <YAxis
+                unit={tempUnit === "F" ? "°F" : "°C"}
+                tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono' }}
+                axisLine={{ stroke: '#334155' }}
+                tickLine={{ stroke: '#334155' }}
+              />
+              <Tooltip content={<CockpitTooltip />} />
+              <Legend
+                wrapperStyle={{ fontSize: 11, fontFamily: 'JetBrains Mono' }}
+              />
+              <Line
+                type="monotone"
+                dataKey="Temperature"
+                stroke="#22d3ee"
+                strokeWidth={2}
+                dot={{ r: 3, fill: '#22d3ee', stroke: '#22d3ee' }}
+                activeDot={{ r: 5, fill: '#22d3ee', stroke: '#0f172a', strokeWidth: 2 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="Feels Like"
+                stroke="#f472b6"
+                strokeWidth={2}
+                strokeDasharray="4 4"
+                dot={{ r: 3, fill: '#f472b6', stroke: '#f472b6' }}
+                activeDot={{ r: 5, fill: '#f472b6', stroke: '#0f172a', strokeWidth: 2 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Hourly table */}
+      <div className="glass-panel p-5">
+        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest font-mono mb-3">Hourly Data</h3>
+        <div className="overflow-x-auto rounded-lg border border-cockpit-border">
+          <table className="min-w-full">
+            <thead>
+              <tr className="bg-cockpit-deep/60">
+                {['Time', 'Condition', 'Temp', 'Feels', 'Precip', 'Wind', 'Humid'].map(h => (
+                  <th key={h} className="px-4 py-2.5 text-left text-[10px] font-mono text-slate-500 uppercase tracking-wider">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-cockpit-border/50">
+              {formattedHourlyData.map((hour, i) => (
+                <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+                  <td className="px-4 py-2.5 text-xs font-mono font-medium text-slate-300">{hour.time}</td>
+                  <td className="px-4 py-2.5 text-xs text-slate-400 flex items-center gap-2">
+                    <img src={hour.icon} alt={hour.condition} className="w-6 h-6" />
+                    <span className="hidden md:inline truncate max-w-[140px]">{hour.condition}</span>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs font-mono text-ch-cyan font-semibold">{hour.temp}°{tempUnit}</td>
+                  <td className="px-4 py-2.5 text-xs font-mono text-slate-400">{hour.feelsLike}°{tempUnit}</td>
+                  <td className="px-4 py-2.5 text-xs font-mono">
+                    <span className={hour.chanceOfRain >= 40 ? 'text-ch-magenta font-semibold' : 'text-slate-500'}>
+                      {hour.chanceOfRain}%
+                    </span>
+                    {hour.precipAmount > 0 && (
+                      <span className="text-ch-magenta text-[10px] ml-1">{hour.precipAmount}"</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 text-xs font-mono text-ch-amber">{hour.wind} mph</td>
+                  <td className="px-4 py-2.5 text-xs font-mono text-slate-400">{hour.humidity}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default DetailedForecast;

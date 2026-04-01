@@ -2,9 +2,18 @@ import React from 'react';
 import { CloudRain, Droplets, Umbrella } from 'lucide-react';
 import { getPrecipitationIntensity } from '../../utils/weatherUtils';
 
-/**
- * Compact precipitation info display
- */
+const INTENSITY_COLORS = {
+  'very-high': 'text-ch-magenta',
+  'high': 'text-ch-magenta',
+  'moderate': 'text-ch-magenta/70',
+  'low': 'text-slate-400',
+  'none': 'text-slate-600',
+};
+
+function getIntensityColor(level) {
+  return INTENSITY_COLORS[level] || 'text-slate-500';
+}
+
 const PrecipitationInfo = ({ dayData, showDetails = false, className = "" }) => {
   if (!dayData) return null;
 
@@ -12,41 +21,40 @@ const PrecipitationInfo = ({ dayData, showDetails = false, className = "" }) => 
   const totalPrecip = dayData.day.totalprecip_in;
   const willItRain = dayData.day.daily_will_it_rain;
   const intensity = getPrecipitationIntensity(rainChance);
+  const colorClass = getIntensityColor(intensity.level);
 
-  // Compact version - just the essential info
   if (!showDetails) {
     return (
-      <div className={`flex items-center space-x-2 ${className}`}>
-        <CloudRain className={`${intensity.color} ${rainChance > 0 ? '' : 'opacity-50'}`} size={16} />
-        <span className={`text-sm font-medium ${intensity.color}`}>
+      <div className={`flex items-center gap-1.5 ${className}`}>
+        <Droplets className={`${colorClass} ${rainChance > 0 ? '' : 'opacity-40'}`} size={14} />
+        <span className={`text-xs font-mono font-medium ${colorClass}`}>
           {rainChance}%
         </span>
         {totalPrecip > 0 && (
-          <span className="text-xs text-gray-500">({totalPrecip}")</span>
+          <span className="text-[10px] text-slate-500 font-mono">({totalPrecip}")</span>
         )}
       </div>
     );
   }
 
-  // Detailed version
   return (
-    <div className={`${intensity.bg} border border-gray-200 rounded-lg p-3 ${className}`}>
+    <div className={`glass-panel-flush rounded-lg p-3 ${className}`}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Umbrella className={intensity.color} size={20} />
+        <div className="flex items-center gap-2">
+          <Umbrella className={colorClass} size={16} />
           <div>
-            <p className="text-sm font-medium text-gray-800">
-              Precipitation: {intensity.label}
+            <p className="text-xs font-mono text-slate-300">
+              Precip: <span className={colorClass}>{intensity.label}</span>
             </p>
-            <p className="text-xs text-gray-600">
-              {rainChance}% chance {willItRain ? '• Rain expected' : ''}
+            <p className="text-[10px] text-slate-500 font-mono">
+              {rainChance}% {willItRain ? '• EXPECTED' : ''}
             </p>
           </div>
         </div>
         {totalPrecip > 0 && (
           <div className="text-right">
-            <p className="text-sm font-bold text-blue-600">{totalPrecip}"</p>
-            <p className="text-xs text-gray-500">expected</p>
+            <p className="text-sm font-mono font-bold text-ch-magenta">{totalPrecip}"</p>
+            <p className="text-[9px] text-slate-500 font-mono uppercase">Expected</p>
           </div>
         )}
       </div>
@@ -54,28 +62,26 @@ const PrecipitationInfo = ({ dayData, showDetails = false, className = "" }) => 
   );
 };
 
-/**
- * Hourly precipitation indicator
- */
 export const HourlyPrecipIndicator = ({ hour, compact = false }) => {
   const rainChance = hour.chance_of_rain;
   const intensity = getPrecipitationIntensity(rainChance);
-  
+  const colorClass = getIntensityColor(intensity.level);
+
   if (compact) {
     return (
-      <div className="flex items-center space-x-1">
-        <Droplets className={intensity.color} size={12} />
-        <span className={`text-xs ${intensity.color}`}>{rainChance}%</span>
+      <div className="flex items-center gap-1">
+        <Droplets className={colorClass} size={10} />
+        <span className={`text-xs font-mono ${colorClass}`}>{rainChance}%</span>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center space-y-1">
-      <Droplets className={intensity.color} size={16} />
-      <span className={`text-xs ${intensity.color} font-medium`}>{rainChance}%</span>
+    <div className="flex flex-col items-center gap-0.5">
+      <Droplets className={colorClass} size={14} />
+      <span className={`text-xs font-mono font-medium ${colorClass}`}>{rainChance}%</span>
       {hour.precip_in > 0 && (
-        <span className="text-xs text-blue-600 font-bold">{hour.precip_in}"</span>
+        <span className="text-[10px] font-mono text-ch-cyan font-bold">{hour.precip_in}"</span>
       )}
     </div>
   );

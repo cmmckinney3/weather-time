@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import WeatherAppLayout from "./components/WeatherAppLayout";
-import { MapPin, Search, Compass, TrendingUp, Camera, Umbrella, Clock, X } from "lucide-react";
+import { MapPin, Search, Compass, Zap, Droplets, Wind, X, Clock, Radio } from "lucide-react";
 import { getWeatherRecommendation, getWeatherIcon } from "./utils/weatherUtils";
 
 const API_KEY = import.meta.env.VITE_API_KEY;
@@ -44,7 +44,6 @@ function App() {
   const [error, setError] = useState(null);
   const [weather, setWeather] = useState(null);
   const [quote, setQuote] = useState(() => randomQuote("default"));
-  const [backgroundClass, setBackgroundClass] = useState("from-blue-50 to-indigo-100");
   const [tempUnit, setTempUnit] = useState("F");
   const [recentSearches, setRecentSearches] = useState(
     () => JSON.parse(localStorage.getItem("weather_recent") || "[]")
@@ -56,16 +55,12 @@ function App() {
     if (!weather?.current) return;
     const condition = weather.current.condition.text.toLowerCase();
     if (condition.includes("sun") || condition.includes("clear")) {
-      setBackgroundClass("from-yellow-50 to-amber-100");
       setQuote(randomQuote("sunny"));
     } else if (condition.includes("rain")) {
-      setBackgroundClass("from-blue-100 to-indigo-200");
       setQuote(randomQuote("rainy"));
     } else if (condition.includes("cloud")) {
-      setBackgroundClass("from-gray-100 to-blue-100");
       setQuote(randomQuote("cloudy"));
     } else if (condition.includes("snow")) {
-      setBackgroundClass("from-blue-50 to-gray-100");
       setQuote(randomQuote("snowy"));
     } else {
       setQuote(randomQuote("default"));
@@ -86,7 +81,6 @@ function App() {
       }
       const data = await res.json();
       setWeather(data);
-      // Persist successful search
       localStorage.setItem("weather_last_city", query);
       setRecentSearches((prev) => {
         const next = [query, ...prev.filter((c) => c.toLowerCase() !== query.toLowerCase())].slice(0, 5);
@@ -100,7 +94,6 @@ function App() {
     }
   };
 
-  // Auto-load last city on mount
   useEffect(() => {
     const saved = localStorage.getItem("weather_last_city");
     if (saved) fetchWeather(saved);
@@ -108,7 +101,7 @@ function App() {
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setError("Geolocation is not supported by your browser. Please search manually.");
+      setError("Geolocation is not supported by your browser.");
       return;
     }
     setLoading(true);
@@ -118,7 +111,7 @@ function App() {
         fetchWeather(`${latitude},${longitude}`);
       },
       () => {
-        setError("Unable to retrieve your location. Please search manually.");
+        setError("Unable to retrieve your location.");
         setLoading(false);
       },
       { timeout: 10000 }
@@ -144,7 +137,6 @@ function App() {
   };
 
   const handleInputBlur = () => {
-    // Delay so dropdown button clicks fire before the dropdown closes
     blurTimerRef.current = setTimeout(() => setShowRecents(false), 150);
   };
 
@@ -160,115 +152,136 @@ function App() {
       : null;
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b ${backgroundClass} transition-colors duration-1000`}>
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto mb-8">
-          <div className="flex items-center justify-center gap-4 mb-2">
-            <h1 className="text-4xl font-bold text-center text-indigo-900">
+    <div className="min-h-screen bg-cockpit-deep grid-texture relative">
+      {/* Top bar */}
+      <header className="border-b border-cockpit-border bg-cockpit-base/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-ch-cyan to-ch-cyan-dim flex items-center justify-center shadow-glow-cyan">
+              <Zap size={16} className="text-cockpit-deep" />
+            </div>
+            <h1 className="text-lg font-semibold font-display text-slate-100 tracking-tight">
               Weather My Way
             </h1>
+            {weather && (
+              <div className="hidden md:flex items-center gap-2 ml-4 pl-4 border-l border-cockpit-border">
+                <div className="live-dot bg-ch-emerald" />
+                <span className="text-xs text-slate-400 font-mono">LIVE</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setTempUnit((u) => (u === "F" ? "C" : "F"))}
               aria-label={`Switch to degrees ${tempUnit === "F" ? "Celsius" : "Fahrenheit"}`}
-              className="bg-white border border-indigo-200 text-indigo-700 font-bold text-sm px-3 py-1 rounded-full shadow-sm hover:bg-indigo-50 transition-colors"
+              className="cockpit-btn px-3 py-1.5 rounded-lg font-mono text-sm font-medium"
             >
               °{tempUnit === "F" ? "C" : "F"}
             </button>
+            <button
+              onClick={getCurrentLocation}
+              disabled={loading}
+              aria-label="Use my current location"
+              className="cockpit-btn px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm disabled:opacity-40"
+            >
+              <Compass size={14} />
+              <span className="hidden sm:inline">Locate</span>
+            </button>
           </div>
+        </div>
+      </header>
 
-          <p className="text-center text-indigo-700 italic mb-6">"{quote}"</p>
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* Search section */}
+        <div className="max-w-2xl mx-auto mb-8 animate-fade-in-up">
+          {!weather && (
+            <p className="text-center text-slate-400 italic mb-4 text-sm font-display">
+              "{quote}"
+            </p>
+          )}
 
-          {/* Search input with recent searches dropdown */}
-          <div className="relative mb-6">
+          <div className="relative">
             <label htmlFor="city-search" className="sr-only">
               Search by city, zip code, or location
             </label>
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <MapPin className="text-gray-500" aria-hidden="true" />
+            <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+              <MapPin className="text-slate-500" size={16} />
             </div>
             <input
               id="city-search"
               type="text"
-              placeholder="Enter city, zip code, or location"
+              placeholder="Enter city, zip code, or coordinates"
               value={city}
               onChange={(e) => setCity(e.target.value)}
               onKeyDown={handleKeyDown}
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
               autoComplete="off"
-              className="w-full pl-10 pr-24 py-3 rounded-lg border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full pl-10 pr-28 py-3 rounded-xl bg-cockpit-panel border border-cockpit-border text-slate-100 placeholder-slate-500 font-mono text-sm focus:outline-none focus:border-ch-cyan focus:shadow-glow-cyan transition-all"
             />
             <button
               onClick={getWeather}
               disabled={loading}
               aria-label="Search weather"
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-medium py-2 px-4 rounded-lg flex items-center transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-ch-cyan-dim to-ch-cyan text-cockpit-deep font-semibold text-sm py-2 px-4 rounded-lg flex items-center gap-1.5 hover:shadow-glow-cyan disabled:opacity-40 transition-all"
             >
               {loading ? (
-                <span className="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin mr-1" aria-hidden="true" />
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-cockpit-deep border-t-transparent animate-spin" />
               ) : (
-                <Search className="mr-1" size={18} aria-hidden="true" />
+                <Search size={14} />
               )}
               Search
             </button>
 
             {/* Recent searches dropdown */}
             {showRecents && recentSearches.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recent</span>
+              <div className="absolute top-full left-0 right-0 z-10 mt-2 glass-panel overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-cockpit-border">
+                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">Recent</span>
                   <button
-                    onMouseDown={(e) => e.preventDefault()} // prevent blur before click
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={clearRecents}
-                    className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
+                    className="text-xs text-slate-500 hover:text-ch-red transition-colors flex items-center gap-1"
                     aria-label="Clear recent searches"
                   >
-                    <X size={12} /> Clear
+                    <X size={10} /> Clear
                   </button>
                 </div>
                 {recentSearches.map((recent) => (
                   <button
                     key={recent}
-                    onMouseDown={(e) => e.preventDefault()} // prevent blur before click
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       setCity(recent);
                       fetchWeather(recent);
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-indigo-50 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
                   >
-                    <Clock size={14} className="text-gray-400 flex-shrink-0" aria-hidden="true" />
-                    <span className="text-sm text-gray-700">{recent}</span>
+                    <Clock size={12} className="text-slate-500 flex-shrink-0" />
+                    <span className="text-sm text-slate-300 font-mono">{recent}</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="flex justify-center mb-6">
-            <button
-              onClick={getCurrentLocation}
-              disabled={loading}
-              aria-label="Use my current location"
-              className="flex items-center bg-white hover:bg-gray-50 disabled:opacity-60 text-indigo-600 font-medium py-2 px-4 rounded-lg shadow transition-colors"
-            >
-              <Compass className="mr-2" size={18} aria-hidden="true" />
-              Use my location
-            </button>
-          </div>
-
           {error && (
-            <div className="mt-4 bg-red-50 border-l-4 border-red-500 p-4 rounded" role="alert">
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="mt-4 glass-panel border-ch-red/30 p-4 flex items-center gap-3" role="alert">
+              <div className="w-2 h-2 rounded-full bg-ch-red animate-pulse flex-shrink-0" />
+              <p className="text-sm text-ch-red font-mono">{error}</p>
             </div>
           )}
         </div>
 
+        {/* Popular destinations (no weather loaded) */}
         {!weather && !loading && (
-          <div className="max-w-4xl mx-auto bg-white bg-opacity-80 rounded-xl shadow-lg p-6 mb-8">
-            <h2 className="text-2xl font-bold text-center text-indigo-900 mb-6">
-              Popular Weather Destinations
+          <div className="max-w-4xl mx-auto glass-panel p-6 mb-8 animate-fade-in-up-2">
+            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest font-mono mb-4 flex items-center gap-2">
+              <Radio size={14} className="text-ch-cyan" />
+              Popular Stations
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {["New York", "London", "Tokyo", "Sydney", "Paris", "Dubai", "Cape Town", "Rio de Janeiro"].map(
                 (popularCity) => (
                   <button
@@ -277,9 +290,9 @@ function App() {
                       setCity(popularCity);
                       fetchWeather(popularCity);
                     }}
-                    className="bg-gradient-to-r from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 rounded-lg p-4 text-center shadow-sm transition-all duration-300 hover:shadow-md"
+                    className="cockpit-btn rounded-lg px-4 py-3 text-center text-sm font-display"
                   >
-                    <p className="font-medium text-indigo-800">{popularCity}</p>
+                    {popularCity}
                   </button>
                 )
               )}
@@ -287,99 +300,87 @@ function App() {
           </div>
         )}
 
+        {/* Weather data display */}
         {weather && (
-          <>
-            <div className="max-w-4xl mx-auto mb-6">
-              <div className="bg-white bg-opacity-90 rounded-xl shadow p-6 flex flex-col md:flex-row items-center justify-between">
-                <div className="flex items-center mb-4 md:mb-0">
-                  <div className="mr-4" aria-hidden="true">
-                    {getWeatherIcon(weather.current.condition, 64)}
+          <div className="animate-fade-in-up">
+            {/* Station header */}
+            <div className="max-w-7xl mx-auto mb-6">
+              <div className="glass-panel p-5 scanlines relative overflow-hidden">
+                <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-cockpit-deep/60 border border-cockpit-border">
+                      {getWeatherIcon(weather.current.condition, 48)}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h2 className="text-xl font-semibold text-slate-100 font-display">
+                          {weather.location.name}
+                        </h2>
+                        <span className="text-xs text-slate-500 font-mono">
+                          {weather.location.region && `${weather.location.region}, `}{weather.location.country}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-400">{weather.current.condition.text}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-800">{weather.location.name}</h2>
-                    <p className="text-lg text-gray-600">{weather.current.condition.text}</p>
-                    <p className="text-3xl font-bold text-indigo-600">
-                      {tempUnit === "F"
-                        ? `${weather.current.temp_f}°F`
-                        : `${weather.current.temp_c}°C`}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-gray-600">
-                    Feels like:{" "}
-                    {tempUnit === "F"
-                      ? `${weather.current.feelslike_f}°F`
-                      : `${weather.current.feelslike_c}°C`}
-                  </p>
-                  <p className="text-gray-600">Wind: {weather.current.wind_mph} mph</p>
-                  <p className="text-gray-600">Humidity: {weather.current.humidity}%</p>
-                </div>
-              </div>
-            </div>
 
-            <div className="max-w-4xl mx-auto mb-6">
-              <div className="bg-white bg-opacity-80 rounded-xl shadow-sm p-4 mb-4 text-center">
-                <p className="text-lg text-indigo-800 italic">"{quote}"</p>
-              </div>
+                  <div className="flex items-center gap-6">
+                    {/* Primary readout */}
+                    <div className="text-right">
+                      <p className="text-4xl font-bold font-mono text-ch-cyan glow-cyan tracking-tight">
+                        {tempUnit === "F"
+                          ? `${weather.current.temp_f}°`
+                          : `${weather.current.temp_c}°`}
+                      </p>
+                      <p className="text-xs text-slate-500 font-mono mt-1">
+                        FEELS {tempUnit === "F"
+                          ? `${weather.current.feelslike_f}°F`
+                          : `${weather.current.feelslike_c}°C`}
+                      </p>
+                    </div>
 
-              {recommendation && (
-                <div className="bg-white bg-opacity-90 rounded-xl shadow p-4 flex items-center">
-                  <div className="mr-4" aria-hidden="true">
-                    {recommendation.icon}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-800">Today's Recommendation</h3>
-                    <p className="text-gray-700">{recommendation.text}</p>
+                    {/* Quick stats */}
+                    <div className="hidden sm:flex flex-col gap-2 pl-6 border-l border-cockpit-border">
+                      <div className="flex items-center gap-2">
+                        <Wind size={12} className="text-ch-amber" />
+                        <span className="text-sm font-mono text-slate-300">{weather.current.wind_mph} mph</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Droplets size={12} className="text-ch-magenta" />
+                        <span className="text-sm font-mono text-slate-300">{weather.current.humidity}%</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
+
+                {/* Recommendation bar */}
+                {recommendation && (
+                  <div className="mt-4 pt-4 border-t border-cockpit-border flex items-center gap-3">
+                    <div className="opacity-70">{recommendation.icon}</div>
+                    <p className="text-sm text-slate-400 italic font-display">{recommendation.text}</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <WeatherAppLayout weather={weather} tempUnit={tempUnit} />
-          </>
+          </div>
         )}
 
-        <div className="max-w-4xl mx-auto mt-12 px-4">
-          <h3 className="text-xl font-bold text-center text-indigo-900 mb-6">App Features</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg shadow p-4 text-center">
-              <div className="flex justify-center mb-3">
-                <TrendingUp className="text-indigo-600" size={28} aria-hidden="true" />
-              </div>
-              <h4 className="font-semibold text-gray-800 mb-2">Accurate Forecasts</h4>
-              <p className="text-gray-600 text-sm">Get detailed 3-day forecasts with hourly updates for any location worldwide</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4 text-center">
-              <div className="flex justify-center mb-3">
-                <Camera className="text-indigo-600" size={28} aria-hidden="true" />
-              </div>
-              <h4 className="font-semibold text-gray-800 mb-2">Visual Weather</h4>
-              <p className="text-gray-600 text-sm">Interactive weather visualizations help you understand conditions at a glance</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4 text-center">
-              <div className="flex justify-center mb-3">
-                <Umbrella className="text-indigo-600" size={28} aria-hidden="true" />
-              </div>
-              <h4 className="font-semibold text-gray-800 mb-2">Smart Recommendations</h4>
-              <p className="text-gray-600 text-sm">Get daily tips based on weather conditions to help plan your activities</p>
-            </div>
-          </div>
-
-          <div className="text-center mt-8 pt-4 border-t border-gray-200">
-            <p className="text-gray-600 text-sm">
-              Powered by{" "}
-              <a
-                href="https://www.weatherapi.com/"
-                title="Weather API"
-                className="text-indigo-600 hover:text-indigo-800 underline"
-              >
-                WeatherAPI.com
-              </a>
-            </p>
-          </div>
-        </div>
-      </div>
+        {/* Footer */}
+        <footer className="max-w-7xl mx-auto mt-12 pt-4 border-t border-cockpit-border text-center">
+          <p className="text-xs text-slate-600 font-mono">
+            Powered by{" "}
+            <a
+              href="https://www.weatherapi.com/"
+              title="Weather API"
+              className="text-ch-cyan-dim hover:text-ch-cyan transition-colors"
+            >
+              WeatherAPI.com
+            </a>
+          </p>
+        </footer>
+      </main>
     </div>
   );
 }
