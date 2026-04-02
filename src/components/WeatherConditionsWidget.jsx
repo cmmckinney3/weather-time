@@ -5,6 +5,7 @@ import {
   Gauge as GaugeIcon, Activity, Zap
 } from 'lucide-react';
 import { getWeatherIcon, getPrecipitationSummary, getPrecipitationIntensity } from '../utils/weatherUtils';
+import WindCompass from './WindCompass';
 
 const AQI_LEVELS = [
   { label: 'Good',                  color: 'text-ch-emerald', bg: 'bg-ch-emerald/10', border: 'border-ch-emerald/30', glow: 'glow-emerald' },
@@ -46,7 +47,7 @@ function RadialGauge({ value, max, label, unit, color, size = 100 }) {
   const offset = circumference * (1 - percentage);
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center relative">
       <svg width={size} height={size} className="transform -rotate-90">
         {/* Background track */}
         <circle
@@ -159,18 +160,42 @@ const WeatherConditionsWidget = ({ weather, tempUnit = "F" }) => {
         </div>
       </div>
 
+      {/* Wind direction compass */}
+      <div className="glass-panel p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Compass size={14} className="text-ch-cyan" />
+          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-widest font-mono">
+            Wind Direction
+          </h2>
+        </div>
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <WindCompass windDegree={current.wind_degree} windDir={current.wind_dir} />
+          <div className="flex flex-col gap-3 flex-1">
+            <div className="glass-panel-flush rounded-lg p-3 flex items-center gap-3">
+              <Wind size={16} className="text-ch-amber flex-shrink-0" />
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">Wind Speed</p>
+                <p className="text-sm font-mono font-semibold text-ch-amber">{current.wind_mph} mph</p>
+              </div>
+            </div>
+            <div className="glass-panel-flush rounded-lg p-3 flex items-center gap-3">
+              <Wind size={16} className="text-ch-amber/60 flex-shrink-0" />
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">Gust</p>
+                <p className="text-sm font-mono font-semibold text-ch-amber/80">{current.gust_mph} mph</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Readout grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {[
           {
             icon: Thermometer, iconColor: 'text-ch-cyan', label: 'Feels Like',
             value: tempUnit === "F" ? `${current.feelslike_f}°F` : `${current.feelslike_c}°C`,
             valueColor: 'text-ch-cyan'
-          },
-          {
-            icon: Wind, iconColor: 'text-ch-amber', label: 'Wind Dir',
-            value: `${current.wind_dir} ${current.wind_degree}°`,
-            valueColor: 'text-ch-amber'
           },
           {
             icon: Eye, iconColor: 'text-slate-300', label: 'Visibility',
@@ -186,11 +211,6 @@ const WeatherConditionsWidget = ({ weather, tempUnit = "F" }) => {
             icon: Thermometer, iconColor: 'text-teal-400', label: 'Dew Point',
             value: tempUnit === "F" ? `${current.dewpoint_f}°F` : `${current.dewpoint_c}°C`,
             valueColor: 'text-teal-400'
-          },
-          {
-            icon: Wind, iconColor: 'text-ch-amber', label: 'Gust',
-            value: `${current.gust_mph} mph`,
-            valueColor: 'text-ch-amber'
           },
           {
             icon: ArrowUp, iconColor: 'text-ch-red', label: 'High',

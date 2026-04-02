@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import WeatherAppLayout from "./components/WeatherAppLayout";
-import { MapPin, Search, Compass, Zap, Droplets, Wind, X, Clock, Radio } from "lucide-react";
+import { MapPin, Search, Compass, Zap, Droplets, Wind, X, Clock, Radio, Star } from "lucide-react";
 import { getWeatherRecommendation, getWeatherIcon } from "./utils/weatherUtils";
 
 const API_KEY = import.meta.env.VITE_API_KEY;
@@ -50,6 +50,49 @@ function App() {
   );
   const [showRecents, setShowRecents] = useState(false);
   const blurTimerRef = useRef(null);
+  const autocompleteTimerRef = useRef(null);
+  const [autocompleteResults, setAutocompleteResults] = useState([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [favorites, setFavorites] = useState(
+    () => JSON.parse(localStorage.getItem("weather_favorites") || "[]")
+  );
+  const [favoriteWeather, setFavoriteWeather] = useState({});
+  // Map of cityName → { temp_f, temp_c, condition }
+
+  const fetchFavoriteWeather = useCallback(async (cityName) => {
+    try {
+      const res = await fetch(
+        `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${encodeURIComponent(cityName)}&days=1`
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      setFavoriteWeather((prev) => ({
+        ...prev,
+        [cityName]: {
+          temp_f: data.current.temp_f,
+          temp_c: data.current.temp_c,
+          condition: data.current.condition,
+        },
+      }));
+    } catch {
+      // silently ignore — favorites still load without weather data
+    }
+  }, []); // API_KEY is a module-level constant; setFavoriteWeather setter is always stable
+
+  const toggleFavorite = (cityName) => {
+    setFavorites((prev) => {
+      const isFav = prev.some((c) => c.toLowerCase() === cityName.toLowerCase());
+      const next = isFav
+        ? prev.filter((c) => c.toLowerCase() !== cityName.toLowerCase())
+        : [...prev, cityName];
+      localStorage.setItem("weather_favorites", JSON.stringify(next));
+      if (!isFav) fetchFavoriteWeather(cityName);
+      return next;
+    });
+  };
+
+  const isFavorite = (cityName) =>
+    favorites.some((c) => c.toLowerCase() === cityName?.toLowerCase());
 
   useEffect(() => {
     if (!weather?.current) return;
@@ -99,6 +142,19 @@ function App() {
     if (saved) fetchWeather(saved);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem("weather_favorites") || "[]");
+    saved.forEach(fetchFavoriteWeather);
+  }, [fetchFavoriteWeather]);
+
+  // Clean up pending timers on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(autocompleteTimerRef.current);
+      clearTimeout(blurTimerRef.current);
+    };
+  }, []);
+
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
       setError("Geolocation is not supported by your browser.");
@@ -118,6 +174,38 @@ function App() {
     );
   };
 
+  const handleCityInputChange = (e) => {
+    const value = e.target.value;
+    setCity(value);
+    setShowRecents(false);
+    clearTimeout(autocompleteTimerRef.current);
+    if (value.length < 2) {
+      setAutocompleteResults([]);
+      setShowAutocomplete(false);
+      return;
+    }
+    autocompleteTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://api.weatherapi.com/v1/search.json?key=${API_KEY}&q=${encodeURIComponent(value)}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        setAutocompleteResults(data);
+        setShowAutocomplete(data.length > 0);
+      } catch {
+        // ignore autocomplete failures silently
+      }
+    }, 300);
+  };
+
+  const handleAutocompleteSelect = (result) => {
+    setCity(result.name);
+    setShowAutocomplete(false);
+    setAutocompleteResults([]);
+    fetchWeather(result.name);
+  };
+
   const getWeather = () => {
     if (!city.trim()) {
       setError("Please enter a city name");
@@ -127,17 +215,26 @@ function App() {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter") getWeather();
-    if (e.key === "Escape") setShowRecents(false);
+    if (e.key === "Enter") {
+      setShowAutocomplete(false);
+      getWeather();
+    }
+    if (e.key === "Escape") {
+      setShowRecents(false);
+      setShowAutocomplete(false);
+    }
   };
 
   const handleInputFocus = () => {
     clearTimeout(blurTimerRef.current);
-    if (recentSearches.length > 0) setShowRecents(true);
+    if (!showAutocomplete && (recentSearches.length > 0 || favorites.length > 0)) setShowRecents(true);
   };
 
   const handleInputBlur = () => {
-    blurTimerRef.current = setTimeout(() => setShowRecents(false), 150);
+    blurTimerRef.current = setTimeout(() => {
+      setShowRecents(false);
+      setShowAutocomplete(false);
+    }, 150);
   };
 
   const clearRecents = () => {
@@ -213,7 +310,7 @@ function App() {
               type="text"
               placeholder="Enter city, zip code, or coordinates"
               value={city}
-              onChange={(e) => setCity(e.target.value)}
+              onChange={handleCityInputChange}
               onKeyDown={handleKeyDown}
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
@@ -234,34 +331,89 @@ function App() {
               Search
             </button>
 
-            {/* Recent searches dropdown */}
-            {showRecents && recentSearches.length > 0 && (
+            {/* Autocomplete dropdown */}
+            {showAutocomplete && autocompleteResults.length > 0 && (
               <div className="absolute top-full left-0 right-0 z-10 mt-2 glass-panel overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-cockpit-border">
-                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">Recent</span>
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={clearRecents}
-                    className="text-xs text-slate-500 hover:text-ch-red transition-colors flex items-center gap-1"
-                    aria-label="Clear recent searches"
-                  >
-                    <X size={10} /> Clear
-                  </button>
+                <div className="px-4 py-2 border-b border-cockpit-border">
+                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">Suggestions</span>
                 </div>
-                {recentSearches.map((recent) => (
+                {autocompleteResults.map((result) => (
                   <button
-                    key={recent}
+                    key={result.id}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setCity(recent);
-                      fetchWeather(recent);
-                    }}
+                    onClick={() => handleAutocompleteSelect(result)}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
                   >
-                    <Clock size={12} className="text-slate-500 flex-shrink-0" />
-                    <span className="text-sm text-slate-300 font-mono">{recent}</span>
+                    <MapPin size={12} className="text-ch-cyan flex-shrink-0" />
+                    <span className="text-sm text-slate-200 font-mono">{result.name}</span>
+                    <span className="text-xs text-slate-500 font-mono ml-1">
+                      {result.region ? `${result.region}, ` : ''}{result.country}
+                    </span>
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* Recent searches + favorites dropdown */}
+            {!showAutocomplete && showRecents && (recentSearches.length > 0 || favorites.length > 0) && (
+              <div className="absolute top-full left-0 right-0 z-10 mt-2 glass-panel overflow-hidden">
+                {/* Favorites section */}
+                {favorites.length > 0 && (
+                  <>
+                    <div className="px-4 py-2 border-b border-cockpit-border flex items-center gap-1.5">
+                      <Star size={10} className="text-ch-amber" fill="currentColor" />
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">Favorites</span>
+                    </div>
+                    {favorites.map((fav) => {
+                      const fw = favoriteWeather[fav];
+                      return (
+                        <button
+                          key={fav}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => { setCity(fav); fetchWeather(fav); setShowRecents(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+                        >
+                          <Star size={12} className="text-ch-amber flex-shrink-0" fill="currentColor" />
+                          <span className="text-sm text-slate-200 font-mono flex-1">{fav}</span>
+                          {fw && (
+                            <span className="text-xs font-mono text-slate-500 flex items-center gap-1">
+                              {getWeatherIcon(fw.condition, 12)}
+                              {tempUnit === "F" ? `${fw.temp_f}°F` : `${fw.temp_c}°C`}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Recents section */}
+                {recentSearches.length > 0 && (
+                  <>
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-cockpit-border">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">Recent</span>
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={clearRecents}
+                        className="text-xs text-slate-500 hover:text-ch-red transition-colors flex items-center gap-1"
+                        aria-label="Clear recent searches"
+                      >
+                        <X size={10} /> Clear
+                      </button>
+                    </div>
+                    {recentSearches.map((recent) => (
+                      <button
+                        key={recent}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => { setCity(recent); fetchWeather(recent); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+                      >
+                        <Clock size={12} className="text-slate-500 flex-shrink-0" />
+                        <span className="text-sm text-slate-300 font-mono">{recent}</span>
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -273,6 +425,38 @@ function App() {
             </div>
           )}
         </div>
+
+        {/* Favorites row (no weather loaded) */}
+        {!weather && !loading && favorites.length > 0 && (
+          <div className="max-w-4xl mx-auto glass-panel p-6 mb-4 animate-fade-in-up-2">
+            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest font-mono mb-4 flex items-center gap-2">
+              <Star size={14} className="text-ch-amber" fill="currentColor" />
+              Favorites
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {favorites.map((fav) => {
+                const fw = favoriteWeather[fav];
+                return (
+                  <button
+                    key={fav}
+                    onClick={() => { setCity(fav); fetchWeather(fav); }}
+                    className="cockpit-btn rounded-lg px-4 py-3 text-left flex flex-col gap-1"
+                  >
+                    <span className="text-sm font-display truncate w-full">{fav}</span>
+                    {fw ? (
+                      <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400">
+                        {getWeatherIcon(fw.condition, 12)}
+                        <span>{tempUnit === "F" ? `${fw.temp_f}°F` : `${fw.temp_c}°C`}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-mono text-slate-600">Loading…</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Popular destinations (no weather loaded) */}
         {!weather && !loading && (
@@ -319,6 +503,17 @@ function App() {
                         <span className="text-xs text-slate-500 font-mono">
                           {weather.location.region && `${weather.location.region}, `}{weather.location.country}
                         </span>
+                        <button
+                          onClick={() => toggleFavorite(weather.location.name)}
+                          aria-label={isFavorite(weather.location.name) ? "Remove from favorites" : "Add to favorites"}
+                          className="ml-1 transition-colors hover:scale-110 active:scale-95"
+                        >
+                          <Star
+                            size={16}
+                            className={isFavorite(weather.location.name) ? "text-ch-amber" : "text-slate-600 hover:text-slate-400"}
+                            fill={isFavorite(weather.location.name) ? "currentColor" : "none"}
+                          />
+                        </button>
                       </div>
                       <p className="text-sm text-slate-400">{weather.current.condition.text}</p>
                     </div>
