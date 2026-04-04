@@ -150,6 +150,20 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
                       </div>
                     </div>
                   ))}
+                  <div className="flex items-center gap-2">
+                    <MoonStar size={14} className="text-indigo-400" />
+                    <div>
+                      <p className="text-[10px] text-slate-500 font-mono uppercase">Moon Phase</p>
+                      <p className="text-xs font-mono text-indigo-300">{day.astro.moon_phase}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Moon size={14} className="text-slate-400" />
+                    <div>
+                      <p className="text-[10px] text-slate-500 font-mono uppercase">Illumination</p>
+                      <p className="text-xs font-mono text-slate-300">{day.astro.moon_illumination}%</p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Hourly table */}
