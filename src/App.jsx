@@ -51,6 +51,7 @@ function App() {
   const [showRecents, setShowRecents] = useState(false);
   const blurTimerRef = useRef(null);
   const autocompleteTimerRef = useRef(null);
+  const lastQueryRef = useRef(null);
   const [autocompleteResults, setAutocompleteResults] = useState([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [favorites, setFavorites] = useState(
@@ -124,6 +125,7 @@ function App() {
       }
       const data = await res.json();
       setWeather(data);
+      lastQueryRef.current = query;
       localStorage.setItem("weather_last_city", query);
       setRecentSearches((prev) => {
         const next = [query, ...prev.filter((c) => c.toLowerCase() !== query.toLowerCase())].slice(0, 5);
@@ -154,6 +156,20 @@ function App() {
       clearTimeout(blurTimerRef.current);
     };
   }, []);
+
+  // Silent auto-refresh every 20 minutes
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!lastQueryRef.current) return;
+      fetch(
+        `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${encodeURIComponent(lastQueryRef.current)}&days=3&aqi=yes&alerts=yes`
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => { if (data) setWeather(data); })
+        .catch(() => {});
+    }, 20 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {

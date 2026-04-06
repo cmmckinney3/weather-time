@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Area, AreaChart } from 'recharts';
+import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Area, AreaChart, ReferenceLine } from 'recharts';
 import { CloudRain, Droplets, Umbrella, Clock, TrendingUp } from 'lucide-react';
 import { formatTime, filterHourlyData } from '../utils/weatherUtils';
 
@@ -168,6 +168,15 @@ const PrecipitationRadar = ({ weather }) => {
                   axisLine={{ stroke: '#334155' }}
                 />
                 <Tooltip content={<CockpitTooltip />} />
+                {selectedDay === 0 && (
+                  <ReferenceLine
+                    x={new Date().toLocaleString('en-US', { hour: 'numeric', hour12: true })}
+                    stroke="#22d3ee"
+                    strokeDasharray="3 3"
+                    strokeOpacity={0.7}
+                    label={{ value: 'NOW', position: 'insideTopRight', fill: '#22d3ee', fontSize: 9, fontFamily: 'JetBrains Mono' }}
+                  />
+                )}
                 <defs>
                   <linearGradient id="precipGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#f472b6" stopOpacity={0.4} />
@@ -207,6 +216,16 @@ const PrecipitationRadar = ({ weather }) => {
                   axisLine={{ stroke: '#334155' }}
                 />
                 <Tooltip content={<CockpitTooltip />} />
+                {selectedDay === 0 && (
+                  <ReferenceLine
+                    yAxisId="left"
+                    x={new Date().toLocaleString('en-US', { hour: 'numeric', hour12: true })}
+                    stroke="#22d3ee"
+                    strokeDasharray="3 3"
+                    strokeOpacity={0.7}
+                    label={{ value: 'NOW', position: 'insideTopRight', fill: '#22d3ee', fontSize: 9, fontFamily: 'JetBrains Mono' }}
+                  />
+                )}
                 <Bar yAxisId="left" dataKey="chanceOfRain" fill="#f472b680" stroke="#f472b6" name="Rain Chance (%)" radius={[3, 3, 0, 0]} />
                 <Line yAxisId="right" type="monotone" dataKey="precipitation" stroke="#22d3ee" strokeWidth={2} name="Precipitation (in)" dot={{ r: 3, fill: '#22d3ee' }} />
               </ComposedChart>

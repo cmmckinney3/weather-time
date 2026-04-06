@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Wind, CalendarDays, Droplets } from 'lucide-react';
 import { getWeatherIcon, formatTime, getShortDayName, filterHourlyData, getPrecipitationSummary } from '../utils/weatherUtils';
 import PrecipitationInfo from './shared/PrecipitationInfo';
@@ -123,6 +123,15 @@ const DetailedForecast = ({ weather, tempUnit = "F" }) => {
               <Legend
                 wrapperStyle={{ fontSize: 11, fontFamily: 'JetBrains Mono' }}
               />
+              {selectedDay === 0 && (
+                <ReferenceLine
+                  x={new Date().toLocaleString('en-US', { hour: 'numeric', hour12: true })}
+                  stroke="#22d3ee"
+                  strokeDasharray="3 3"
+                  strokeOpacity={0.7}
+                  label={{ value: 'NOW', position: 'insideTopRight', fill: '#22d3ee', fontSize: 9, fontFamily: 'JetBrains Mono' }}
+                />
+              )}
               <Line
                 type="monotone"
                 dataKey="Temperature"
