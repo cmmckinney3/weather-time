@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import WeatherAppLayout from "./components/WeatherAppLayout";
 import { MapPin, Search, Compass, Zap, Droplets, Wind, X, Clock, Radio, Star } from "lucide-react";
 import { getWeatherRecommendation, getWeatherIcon } from "./utils/weatherUtils";
-
-const API_KEY = import.meta.env.VITE_API_KEY;
+import { fetchForecast, fetchAutocomplete, fetchFavoriteCurrent } from "./api/weather";
+import { useToast } from "./components/shared/Toast";
+import { WeatherSkeleton } from "./components/shared/Skeleton";
+import WeatherBackground from "./components/WeatherBackground";
 
 const WEATHER_QUOTES = {
   sunny: [
@@ -39,6 +41,7 @@ function randomQuote(category) {
 }
 
 function App() {
+  const toast = useToast();
   const [city, setCity] = useState(() => localStorage.getItem("weather_last_city") || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -60,25 +63,11 @@ function App() {
   const [favoriteWeather, setFavoriteWeather] = useState({});
   // Map of cityName → { temp_f, temp_c, condition }
 
-  const fetchFavoriteWeather = useCallback(async (cityName) => {
-    try {
-      const res = await fetch(
-        `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${encodeURIComponent(cityName)}&days=1`
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      setFavoriteWeather((prev) => ({
-        ...prev,
-        [cityName]: {
-          temp_f: data.current.temp_f,
-          temp_c: data.current.temp_c,
-          condition: data.current.condition,
-        },
-      }));
-    } catch {
-      // silently ignore — favorites still load without weather data
-    }
-  }, []); // API_KEY is a module-level constant; setFavoriteWeather setter is always stable
+  const loadFavoriteWeather = useCallback(async (cityName) => {
+    const data = await fetchFavoriteCurrent(cityName);
+    if (!data) return;
+    setFavoriteWeather((prev) => ({ ...prev, [cityName]: data }));
+  }, []);
 
   const toggleFavorite = (cityName) => {
     setFavorites((prev) => {
@@ -87,7 +76,12 @@ function App() {
         ? prev.filter((c) => c.toLowerCase() !== cityName.toLowerCase())
         : [...prev, cityName];
       localStorage.setItem("weather_favorites", JSON.stringify(next));
-      if (!isFav) fetchFavoriteWeather(cityName);
+      if (isFav) {
+        toast.info(`Removed ${cityName} from favorites`);
+      } else {
+        toast.success(`Added ${cityName} to favorites`);
+        loadFavoriteWeather(cityName);
+      }
       return next;
     });
   };
@@ -111,19 +105,12 @@ function App() {
     }
   }, [weather]);
 
-  const fetchWeather = async (query) => {
+  const loadWeather = async (query) => {
     setLoading(true);
     setError(null);
     setShowRecents(false);
     try {
-      const res = await fetch(
-        `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${encodeURIComponent(query)}&days=3&aqi=yes&alerts=yes`
-      );
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error?.message || "Could not fetch weather data");
-      }
-      const data = await res.json();
+      const data = await fetchForecast(query);
       setWeather(data);
       lastQueryRef.current = query;
       localStorage.setItem("weather_last_city", query);
@@ -133,7 +120,9 @@ function App() {
         return next;
       });
     } catch (err) {
-      setError(err.message || "Could not fetch weather data");
+      const message = err.message || "Could not fetch weather data";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -141,13 +130,13 @@ function App() {
 
   useEffect(() => {
     const saved = localStorage.getItem("weather_last_city");
-    if (saved) fetchWeather(saved);
+    if (saved) loadWeather(saved);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem("weather_favorites") || "[]");
-    saved.forEach(fetchFavoriteWeather);
-  }, [fetchFavoriteWeather]);
+    saved.forEach(loadFavoriteWeather);
+  }, [loadFavoriteWeather]);
 
   // Clean up pending timers on unmount
   useEffect(() => {
@@ -161,29 +150,31 @@ function App() {
   useEffect(() => {
     const id = setInterval(() => {
       if (!lastQueryRef.current) return;
-      fetch(
-        `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${encodeURIComponent(lastQueryRef.current)}&days=3&aqi=yes&alerts=yes`
-      )
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => { if (data) setWeather(data); })
+      fetchForecast(lastQueryRef.current)
+        .then((data) => setWeather(data))
         .catch(() => {});
     }, 20 * 60 * 1000);
     return () => clearInterval(id);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setError("Geolocation is not supported by your browser.");
+      const message = "Geolocation is not supported by your browser.";
+      setError(message);
+      toast.error(message);
       return;
     }
     setLoading(true);
+    toast.info("Locating you…");
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        fetchWeather(`${latitude},${longitude}`);
+        loadWeather(`${latitude},${longitude}`);
       },
       () => {
-        setError("Unable to retrieve your location.");
+        const message = "Unable to retrieve your location.";
+        setError(message);
+        toast.error(message);
         setLoading(false);
       },
       { timeout: 10000 }
@@ -201,17 +192,9 @@ function App() {
       return;
     }
     autocompleteTimerRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `https://api.weatherapi.com/v1/search.json?key=${API_KEY}&q=${encodeURIComponent(value)}`
-        );
-        if (!res.ok) return;
-        const data = await res.json();
-        setAutocompleteResults(data);
-        setShowAutocomplete(data.length > 0);
-      } catch {
-        // ignore autocomplete failures silently
-      }
+      const data = await fetchAutocomplete(value);
+      setAutocompleteResults(data);
+      setShowAutocomplete(data.length > 0);
     }, 300);
   };
 
@@ -219,15 +202,17 @@ function App() {
     setCity(result.name);
     setShowAutocomplete(false);
     setAutocompleteResults([]);
-    fetchWeather(result.name);
+    loadWeather(result.name);
   };
 
   const getWeather = () => {
     if (!city.trim()) {
-      setError("Please enter a city name");
+      const message = "Please enter a city name";
+      setError(message);
+      toast.error(message);
       return;
     }
-    fetchWeather(city.trim());
+    loadWeather(city.trim());
   };
 
   const handleKeyDown = (e) => {
@@ -257,6 +242,7 @@ function App() {
     setRecentSearches([]);
     localStorage.removeItem("weather_recent");
     setShowRecents(false);
+    toast.info("Cleared recent searches");
   };
 
   const recommendation =
@@ -266,6 +252,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-cockpit-deep grid-texture relative">
+      {/* Animated weather + day/night background */}
+      <WeatherBackground weather={weather} />
+
       {/* Top bar */}
       <header className="border-b border-cockpit-border bg-cockpit-base/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -305,7 +294,7 @@ function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 py-6 relative z-10">
         {/* Search section */}
         <div className="max-w-2xl mx-auto mb-8 animate-fade-in-up relative z-20">
           {!weather && (
@@ -386,7 +375,7 @@ function App() {
                         <button
                           key={fav}
                           onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => { setCity(fav); fetchWeather(fav); setShowRecents(false); }}
+                          onClick={() => { setCity(fav); loadWeather(fav); setShowRecents(false); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
                         >
                           <Star size={12} className="text-ch-amber flex-shrink-0" fill="currentColor" />
@@ -421,7 +410,7 @@ function App() {
                       <button
                         key={recent}
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => { setCity(recent); fetchWeather(recent); }}
+                        onClick={() => { setCity(recent); loadWeather(recent); }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
                       >
                         <Clock size={12} className="text-slate-500 flex-shrink-0" />
@@ -442,6 +431,9 @@ function App() {
           )}
         </div>
 
+        {/* Skeleton while initial weather is loading */}
+        {loading && !weather && <WeatherSkeleton />}
+
         {/* Favorites row (no weather loaded) */}
         {!weather && !loading && favorites.length > 0 && (
           <div className="max-w-4xl mx-auto glass-panel p-6 mb-4 animate-fade-in-up-2">
@@ -455,7 +447,7 @@ function App() {
                 return (
                   <button
                     key={fav}
-                    onClick={() => { setCity(fav); fetchWeather(fav); }}
+                    onClick={() => { setCity(fav); loadWeather(fav); }}
                     className="cockpit-btn rounded-lg px-4 py-3 text-left flex flex-col gap-1"
                   >
                     <span className="text-sm font-display truncate w-full">{fav}</span>
@@ -488,7 +480,7 @@ function App() {
                     key={popularCity}
                     onClick={() => {
                       setCity(popularCity);
-                      fetchWeather(popularCity);
+                      loadWeather(popularCity);
                     }}
                     className="cockpit-btn rounded-lg px-4 py-3 text-center text-sm font-display"
                   >

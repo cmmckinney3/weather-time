@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Wind, Droplets, Thermometer, Eye, Compass, ArrowUp, ArrowDown,
-  AlertTriangle, Umbrella, Cloud, ChevronDown, X, Sunrise, Sunset,
+  AlertTriangle, Umbrella, Cloud, ChevronDown, X,
   Gauge as GaugeIcon, Activity, Zap
 } from 'lucide-react';
 import { getWeatherIcon, getPrecipitationSummary, getPrecipitationIntensity } from '../utils/weatherUtils';
 import WindCompass from './WindCompass';
+import SunArcWidget from './SunArcWidget';
+import PressureTrend from './PressureTrend';
 
 const AQI_LEVELS = [
   { label: 'Good',                  color: 'text-ch-emerald', bg: 'bg-ch-emerald/10', border: 'border-ch-emerald/30', glow: 'glow-emerald' },
@@ -203,11 +205,6 @@ const WeatherConditionsWidget = ({ weather, tempUnit = "F" }) => {
             valueColor: 'text-slate-200'
           },
           {
-            icon: GaugeIcon, iconColor: 'text-slate-300', label: 'Pressure',
-            value: `${current.pressure_mb} mb`,
-            valueColor: 'text-slate-200'
-          },
-          {
             icon: Thermometer, iconColor: 'text-teal-400', label: 'Dew Point',
             value: tempUnit === "F" ? `${current.dewpoint_f}°F` : `${current.dewpoint_c}°C`,
             valueColor: 'text-teal-400'
@@ -231,28 +228,12 @@ const WeatherConditionsWidget = ({ weather, tempUnit = "F" }) => {
             </div>
           </div>
         ))}
+        <PressureTrend weather={weather} />
       </div>
 
-      {/* Sunrise / Sunset + Precipitation row */}
+      {/* Sun arc + Precipitation row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {/* Sun strip */}
-        <div className="glass-panel p-4 flex items-center justify-around">
-          <div className="flex items-center gap-2">
-            <Sunrise size={18} className="text-ch-amber" />
-            <div>
-              <p className="text-[10px] text-slate-500 font-mono uppercase">Sunrise</p>
-              <p className="text-sm font-mono font-semibold text-ch-amber">{today.astro.sunrise}</p>
-            </div>
-          </div>
-          <div className="w-px h-8 bg-cockpit-border" />
-          <div className="flex items-center gap-2">
-            <Sunset size={18} className="text-orange-400" />
-            <div>
-              <p className="text-[10px] text-slate-500 font-mono uppercase">Sunset</p>
-              <p className="text-sm font-mono font-semibold text-orange-400">{today.astro.sunset}</p>
-            </div>
-          </div>
-        </div>
+        <SunArcWidget astro={today.astro} localtime={weather.location.localtime} isDay={current.is_day} />
 
         {/* Precipitation summary */}
         {precipSummary.chanceOfRain > 0 ? (

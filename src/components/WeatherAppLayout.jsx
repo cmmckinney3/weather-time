@@ -68,8 +68,8 @@ const WeatherAppLayout = ({ weather, tempUnit }) => {
         })}
       </div>
 
-      {/* Active view */}
-      <div className="animate-fade-in-up">
+      {/* Active view — keyed so each tab change replays the entry animation */}
+      <div key={activeView} className="animate-tab-in">
         {activeView === 'dashboard' && <WeatherDashboard weather={weather} tempUnit={tempUnit} />}
         {activeView === 'forecast' && <DetailedForecast weather={weather} tempUnit={tempUnit} />}
         {activeView === 'conditions' && <WeatherConditionsWidget weather={weather} tempUnit={tempUnit} />}

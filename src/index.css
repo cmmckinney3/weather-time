@@ -196,3 +196,255 @@
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+
+/* ----------------------------------------------------------- */
+/* Tab transitions                                              */
+/* ----------------------------------------------------------- */
+@keyframes tab-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-tab-in { animation: tab-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* ----------------------------------------------------------- */
+/* Toast animations                                             */
+/* ----------------------------------------------------------- */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(20px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(20px) scale(0.95); }
+}
+.animate-toast-in  { animation: toast-in  0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.animate-toast-out { animation: toast-out 0.18s ease-in both; }
+
+/* ----------------------------------------------------------- */
+/* Skeleton shimmer                                             */
+/* ----------------------------------------------------------- */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(30, 41, 59, 0.5)  0%,
+    rgba(51, 65, 85, 0.6) 50%,
+    rgba(30, 41, 59, 0.5) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s linear infinite;
+  border: 1px solid rgba(51, 65, 85, 0.4);
+}
+
+/* ----------------------------------------------------------- */
+/* Weather background — base + theming                          */
+/* ----------------------------------------------------------- */
+.weather-bg {
+  transition: background-color 1.2s ease;
+}
+.weather-bg-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.weather-bg-tint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: opacity 1.2s ease, background 1.2s ease;
+}
+
+/* Idle (no weather loaded) — keep grid texture */
+.weather-bg-idle .weather-bg-tint { opacity: 0; }
+
+/* Day-mode tints */
+.weather-bg-day.weather-bg-clear .weather-bg-tint {
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(251, 191, 36, 0.12), transparent 55%),
+    radial-gradient(ellipse at 80% 110%, rgba(34, 211, 238, 0.08), transparent 60%);
+}
+.weather-bg-day.weather-bg-cloud .weather-bg-tint,
+.weather-bg-day.weather-bg-fog .weather-bg-tint {
+  background: radial-gradient(ellipse at 50% 0%, rgba(148, 163, 184, 0.08), transparent 60%);
+}
+.weather-bg-day.weather-bg-rain .weather-bg-tint,
+.weather-bg-day.weather-bg-storm .weather-bg-tint {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.06), transparent 60%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.35), rgba(2, 6, 23, 0.5));
+}
+.weather-bg-day.weather-bg-snow .weather-bg-tint {
+  background: radial-gradient(ellipse at 50% 0%, rgba(186, 230, 253, 0.10), transparent 60%);
+}
+
+/* Night-mode tints — deeper, cooler */
+.weather-bg-night .weather-bg-tint {
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(30, 27, 75, 0.55), transparent 60%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.55), rgba(2, 6, 23, 0.75));
+}
+.weather-bg-night.weather-bg-storm .weather-bg-tint {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.08), transparent 60%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.92));
+}
+
+/* ---------- Rain ---------- */
+.rain-drop {
+  position: absolute;
+  top: -10%;
+  width: 1.5px;
+  height: 60px;
+  background: linear-gradient(180deg, rgba(186, 230, 253, 0), rgba(186, 230, 253, 0.85));
+  border-radius: 1px;
+  animation-name: rain-fall;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+@keyframes rain-fall {
+  0%   { transform: translate3d(0, -20vh, 0); }
+  100% { transform: translate3d(-30px, 110vh, 0); }
+}
+
+/* ---------- Snow ---------- */
+.snow-flake {
+  position: absolute;
+  top: -10%;
+  background: rgba(241, 245, 249, 0.85);
+  border-radius: 50%;
+  filter: blur(0.5px);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.4);
+  animation-name: snow-fall;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+@keyframes snow-fall {
+  0%   { transform: translate3d(0, -10vh, 0); opacity: 0; }
+  10%  { opacity: 0.9; }
+  100% { transform: translate3d(var(--drift, 0), 110vh, 0); opacity: 0.4; }
+}
+
+/* ---------- Stars ---------- */
+.star {
+  position: absolute;
+  background: #f8fafc;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(248, 250, 252, 0.7);
+  animation: star-twinkle ease-in-out infinite;
+}
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.3); }
+}
+
+/* ---------- Clouds ---------- */
+.cloud {
+  position: absolute;
+  left: -200px;
+  width: 240px;
+  height: 60px;
+  background: radial-gradient(ellipse at 30% 60%, rgba(203, 213, 225, 0.4) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 40%, rgba(203, 213, 225, 0.5) 0%, transparent 65%),
+              radial-gradient(ellipse at 50% 50%, rgba(148, 163, 184, 0.35) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(8px);
+  animation-name: cloud-drift;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+@keyframes cloud-drift {
+  from { transform: translateX(0)   scale(var(--scale, 1)); }
+  to   { transform: translateX(110vw) scale(var(--scale, 1)); }
+}
+
+/* ---------- Sun rays ---------- */
+.sun-glow {
+  position: absolute;
+  top: -20%;
+  left: 50%;
+  width: 80vmin;
+  height: 80vmin;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, rgba(251, 191, 36, 0) 60%);
+  animation: sun-pulse 6s ease-in-out infinite;
+}
+@keyframes sun-pulse {
+  0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); }
+  50%      { opacity: 1;   transform: translateX(-50%) scale(1.05); }
+}
+.sun-rays {
+  position: absolute;
+  top: -30%;
+  left: 50%;
+  width: 100vmin;
+  height: 100vmin;
+  transform: translateX(-50%);
+  background: conic-gradient(
+    from 0deg,
+    rgba(251, 191, 36, 0)    0deg,
+    rgba(251, 191, 36, 0.04) 8deg,
+    rgba(251, 191, 36, 0)    16deg,
+    rgba(251, 191, 36, 0)    40deg,
+    rgba(251, 191, 36, 0.05) 48deg,
+    rgba(251, 191, 36, 0)    56deg,
+    rgba(251, 191, 36, 0)    100deg,
+    rgba(251, 191, 36, 0.04) 108deg,
+    rgba(251, 191, 36, 0)    116deg,
+    rgba(251, 191, 36, 0)    160deg,
+    rgba(251, 191, 36, 0.05) 168deg,
+    rgba(251, 191, 36, 0)    176deg,
+    rgba(251, 191, 36, 0)    220deg,
+    rgba(251, 191, 36, 0.04) 228deg,
+    rgba(251, 191, 36, 0)    236deg,
+    rgba(251, 191, 36, 0)    280deg,
+    rgba(251, 191, 36, 0.05) 288deg,
+    rgba(251, 191, 36, 0)    296deg,
+    rgba(251, 191, 36, 0)    340deg,
+    rgba(251, 191, 36, 0.04) 348deg,
+    rgba(251, 191, 36, 0)    360deg
+  );
+  animation: sun-rays-spin 90s linear infinite;
+  opacity: 0.6;
+}
+@keyframes sun-rays-spin {
+  to { transform: translateX(-50%) rotate(360deg); }
+}
+
+/* ---------- Lightning ---------- */
+.lightning {
+  background: rgba(255, 255, 255, 0);
+  animation: lightning-flash 8s linear infinite;
+}
+@keyframes lightning-flash {
+  0%, 96%, 100%      { background: rgba(255, 255, 255, 0); }
+  96.5%              { background: rgba(255, 255, 255, 0.18); }
+  97%                { background: rgba(255, 255, 255, 0); }
+  97.5%              { background: rgba(255, 255, 255, 0.25); }
+  98%                { background: rgba(255, 255, 255, 0); }
+}
+
+/* Reduced motion: disable particle animations */
+@media (prefers-reduced-motion: reduce) {
+  .rain-drop,
+  .snow-flake,
+  .cloud,
+  .star,
+  .sun-glow,
+  .sun-rays,
+  .lightning,
+  .skeleton-shimmer,
+  .animate-fade-in-up,
+  .animate-fade-in-up-1,
+  .animate-fade-in-up-2,
+  .animate-fade-in-up-3,
+  .animate-fade-in-up-4,
+  .animate-tab-in,
+  .animate-toast-in,
+  .animate-toast-out {
+    animation: none !important;
+  }
+}
