@@ -3,13 +3,15 @@ import WeatherDashboard from './WeatherDashboard';
 import DetailedForecast from './DetailedForecast';
 import WeatherConditionsWidget from './WeatherConditionsWidget';
 import PrecipitationRadar from './PrecipitationRadar';
-import { LayoutDashboard, LineChart, Gauge, CloudRain, AlertTriangle } from 'lucide-react';
+import USRadar from './USRadar';
+import { LayoutDashboard, LineChart, Gauge, CloudRain, AlertTriangle, Radar } from 'lucide-react';
 
 const VIEWS = [
   { id: 'dashboard', label: 'Dashboard', shortLabel: 'DASH', icon: LayoutDashboard },
   { id: 'forecast', label: 'Forecast', shortLabel: 'FCST', icon: LineChart },
   { id: 'conditions', label: 'Conditions', shortLabel: 'COND', icon: Gauge },
   { id: 'precipitation', label: 'Precipitation', shortLabel: 'PRCP', icon: CloudRain },
+  { id: 'radar', label: 'U.S. Radar', shortLabel: 'RADR', icon: Radar },
 ];
 
 const SEVERE_SEVERITIES = new Set(['Extreme', 'Severe']);
@@ -74,6 +76,7 @@ const WeatherAppLayout = ({ weather, tempUnit }) => {
         {activeView === 'forecast' && <DetailedForecast weather={weather} tempUnit={tempUnit} />}
         {activeView === 'conditions' && <WeatherConditionsWidget weather={weather} tempUnit={tempUnit} />}
         {activeView === 'precipitation' && <PrecipitationRadar weather={weather} />}
+        {activeView === 'radar' && <USRadar weather={weather} />}
       </div>
     </div>
   );
