@@ -157,7 +157,7 @@ const DetailedForecast = ({ weather, tempUnit = "F" }) => {
       {/* Hourly table */}
       <div className="glass-panel p-5">
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest font-mono mb-3">Hourly Data</h3>
-        <div className="overflow-x-auto rounded-lg border border-cockpit-border">
+        <div className="scroll-fade-x overflow-x-auto rounded-lg border border-cockpit-border">
           <table className="min-w-full">
             <thead>
               <tr className="bg-cockpit-deep/60">

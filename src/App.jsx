@@ -285,13 +285,30 @@ function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setTempUnit((u) => (u === "F" ? "C" : "F"))}
-              aria-label={`Switch to degrees ${tempUnit === "F" ? "Celsius" : "Fahrenheit"}`}
-              className="cockpit-btn px-3 py-1.5 rounded-lg font-mono text-sm font-medium"
+            <div
+              role="group"
+              aria-label="Temperature unit"
+              className="inline-flex items-center rounded-lg border border-cockpit-border bg-cockpit-panel/60 p-0.5 font-mono text-sm"
             >
-              °{tempUnit === "F" ? "C" : "F"}
-            </button>
+              {["F", "C"].map((u) => {
+                const active = tempUnit === u;
+                return (
+                  <button
+                    key={u}
+                    onClick={() => setTempUnit(u)}
+                    aria-pressed={active}
+                    aria-label={`Show temperatures in degrees ${u === "F" ? "Fahrenheit" : "Celsius"}`}
+                    className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                      active
+                        ? "bg-ch-cyan/15 text-ch-cyan shadow-glow-cyan"
+                        : "text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    °{u}
+                  </button>
+                );
+              })}
+            </div>
             <button
               onClick={getCurrentLocation}
               disabled={loading}
@@ -349,7 +366,7 @@ function App() {
 
             {/* Autocomplete dropdown */}
             {showAutocomplete && autocompleteResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-10 mt-2 glass-panel overflow-hidden">
+              <div className="absolute top-full left-0 right-0 z-10 mt-2 glass-panel overflow-y-auto max-h-[min(60vh,24rem)]">
                 <div className="px-4 py-2 border-b border-cockpit-border">
                   <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">Suggestions</span>
                 </div>
@@ -372,7 +389,7 @@ function App() {
 
             {/* Recent searches + favorites dropdown */}
             {!showAutocomplete && showRecents && (recentSearches.length > 0 || favorites.length > 0) && (
-              <div className="absolute top-full left-0 right-0 z-10 mt-2 glass-panel overflow-hidden">
+              <div className="absolute top-full left-0 right-0 z-10 mt-2 glass-panel overflow-y-auto max-h-[min(60vh,24rem)]">
                 {/* Favorites section */}
                 {favorites.length > 0 && (
                   <>
@@ -441,6 +458,59 @@ function App() {
             </div>
           )}
         </div>
+
+        {/* Initial-load skeleton */}
+        {loading && !weather && (
+          <div className="max-w-7xl mx-auto animate-fade-in-up" aria-live="polite" aria-busy="true">
+            <span className="sr-only">Loading weather data…</span>
+            {/* Station header skeleton */}
+            <div className="glass-panel p-5 mb-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                  <div className="skeleton w-[72px] h-[72px] rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <div className="skeleton h-5 w-40 rounded" />
+                    <div className="skeleton h-3 w-28 rounded" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="space-y-2 text-right">
+                    <div className="skeleton h-10 w-24 rounded ml-auto" />
+                    <div className="skeleton h-3 w-20 rounded ml-auto" />
+                  </div>
+                  <div className="hidden sm:flex flex-col gap-2 pl-6 border-l border-cockpit-border">
+                    <div className="skeleton h-3 w-16 rounded" />
+                    <div className="skeleton h-3 w-16 rounded" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Tab bar skeleton */}
+            <div className="glass-panel p-2 mb-4 flex gap-2">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="skeleton h-8 flex-1 rounded-md" />
+              ))}
+            </div>
+            {/* Forecast strips skeleton */}
+            <div className="space-y-3">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="glass-panel p-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="skeleton w-12 h-12 rounded-lg" />
+                    <div className="space-y-2 flex-1">
+                      <div className="skeleton h-4 w-24 rounded" />
+                      <div className="skeleton h-3 w-32 rounded" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="skeleton h-4 w-10 rounded" />
+                    <div className="skeleton h-4 w-10 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Favorites row (no weather loaded) */}
         {!weather && !loading && favorites.length > 0 && (
@@ -538,15 +608,18 @@ function App() {
                   <div className="flex items-center gap-6">
                     {/* Primary readout */}
                     <div className="text-right">
-                      <p className="text-4xl font-bold font-mono text-ch-cyan glow-cyan tracking-tight">
+                      <p className="text-4xl font-bold font-mono text-ch-cyan glow-cyan tracking-tight leading-none">
                         {tempUnit === "F"
-                          ? `${weather.current.temp_f}°`
-                          : `${weather.current.temp_c}°`}
+                          ? `${Math.round(weather.current.temp_f)}°`
+                          : `${Math.round(weather.current.temp_c)}°`}
                       </p>
-                      <p className="text-xs text-slate-500 font-mono mt-1">
-                        FEELS {tempUnit === "F"
-                          ? `${weather.current.feelslike_f}°F`
-                          : `${weather.current.feelslike_c}°C`}
+                      <p className="text-[10px] text-slate-500 font-mono mt-2 flex items-center gap-1 justify-end">
+                        <span className="uppercase tracking-widest text-slate-600">Feels like</span>
+                        <span className="text-slate-400 font-medium">
+                          {tempUnit === "F"
+                            ? `${Math.round(weather.current.feelslike_f)}°`
+                            : `${Math.round(weather.current.feelslike_c)}°`}
+                        </span>
                       </p>
                     </div>
 

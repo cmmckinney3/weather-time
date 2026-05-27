@@ -149,6 +149,58 @@
   .font-display {
     font-family: 'DM Sans', system-ui, sans-serif;
   }
+
+  /* Horizontal scroll container with edge-fade affordance so users
+     know the content extends beyond the viewport on small screens. */
+  .scroll-fade-x {
+    position: relative;
+  }
+  .scroll-fade-x::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 32px;
+    pointer-events: none;
+    background: linear-gradient(
+      to right,
+      rgba(2, 6, 23, 0),
+      rgba(2, 6, 23, 0.85)
+    );
+    border-top-right-radius: inherit;
+    border-bottom-right-radius: inherit;
+  }
+  @media (min-width: 768px) {
+    .scroll-fade-x::after {
+      display: none;
+    }
+  }
+
+  /* Skeleton shimmer used during initial weather load */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: rgba(30, 41, 59, 0.5);
+    border-radius: 8px;
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(148, 163, 184, 0.08),
+      transparent
+    );
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
 }
 
 /* Animations */

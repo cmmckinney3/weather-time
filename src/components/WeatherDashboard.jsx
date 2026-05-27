@@ -174,7 +174,7 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
                       Hourly Breakdown
                     </h4>
                   </div>
-                  <div className="overflow-x-auto rounded-lg border border-cockpit-border">
+                  <div className="scroll-fade-x overflow-x-auto rounded-lg border border-cockpit-border">
                     <table className="min-w-full">
                       <thead>
                         <tr className="bg-cockpit-deep/60">
