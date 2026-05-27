@@ -54,6 +54,7 @@ function App() {
   const lastQueryRef = useRef(null);
   const [autocompleteResults, setAutocompleteResults] = useState([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [autocompleteSearched, setAutocompleteSearched] = useState(false);
   const [favorites, setFavorites] = useState(
     () => JSON.parse(localStorage.getItem("weather_favorites") || "[]")
   );
@@ -210,6 +211,7 @@ function App() {
     if (value.length < 2) {
       setAutocompleteResults([]);
       setShowAutocomplete(false);
+      setAutocompleteSearched(false);
       return;
     }
     autocompleteTimerRef.current = setTimeout(async () => {
@@ -220,7 +222,8 @@ function App() {
         if (!res.ok) return;
         const data = await res.json();
         setAutocompleteResults(data);
-        setShowAutocomplete(data.length > 0);
+        setAutocompleteSearched(true);
+        setShowAutocomplete(true);
       } catch {
         // ignore autocomplete failures silently
       }
@@ -269,6 +272,15 @@ function App() {
     setRecentSearches([]);
     localStorage.removeItem("weather_recent");
     setShowRecents(false);
+  };
+
+  const removeRecent = (item) => {
+    setRecentSearches((prev) => {
+      const next = prev.filter((c) => c !== item);
+      if (next.length === 0) localStorage.removeItem("weather_recent");
+      else localStorage.setItem("weather_recent", JSON.stringify(next));
+      return next;
+    });
   };
 
   const recommendation =
@@ -377,25 +389,34 @@ function App() {
             </button>
 
             {/* Autocomplete dropdown */}
-            {showAutocomplete && autocompleteResults.length > 0 && (
+            {showAutocomplete && autocompleteSearched && (
               <div className="absolute top-full left-0 right-0 z-10 mt-2 glass-panel overflow-y-auto max-h-[min(60vh,24rem)]">
                 <div className="px-4 py-2 border-b border-cockpit-border">
                   <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">Suggestions</span>
                 </div>
-                {autocompleteResults.map((result) => (
-                  <button
-                    key={result.id}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleAutocompleteSelect(result)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
-                  >
-                    <MapPin size={12} className="text-ch-cyan flex-shrink-0" />
-                    <span className="text-sm text-slate-200 font-mono">{result.name}</span>
-                    <span className="text-xs text-slate-500 font-mono ml-1">
-                      {result.region ? `${result.region}, ` : ''}{result.country}
+                {autocompleteResults.length > 0 ? (
+                  autocompleteResults.map((result) => (
+                    <button
+                      key={result.id}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleAutocompleteSelect(result)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+                    >
+                      <MapPin size={12} className="text-ch-cyan flex-shrink-0" />
+                      <span className="text-sm text-slate-200 font-mono">{result.name}</span>
+                      <span className="text-xs text-slate-500 font-mono ml-1">
+                        {result.region ? `${result.region}, ` : ''}{result.country}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-4 py-4 flex items-center gap-2 text-xs font-mono text-slate-500">
+                    <Search size={12} className="text-slate-600 flex-shrink-0" />
+                    <span>
+                      No matches for <span className="text-slate-300">"{city}"</span>. Try a city, zip code, or "lat,lon".
                     </span>
-                  </button>
-                ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -450,15 +471,27 @@ function App() {
                       </button>
                     </div>
                     {recentSearches.map((recent) => (
-                      <button
+                      <div
                         key={recent}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => { setCity(recent); fetchWeather(recent); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+                        className="group flex items-center pr-2 hover:bg-white/5 transition-colors"
                       >
-                        <Clock size={12} className="text-slate-500 flex-shrink-0" />
-                        <span className="text-sm text-slate-300 font-mono">{recent}</span>
-                      </button>
+                        <button
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => { setCity(recent); fetchWeather(recent); }}
+                          className="flex-1 flex items-center gap-3 px-4 py-2.5 text-left"
+                        >
+                          <Clock size={12} className="text-slate-500 flex-shrink-0" />
+                          <span className="text-sm text-slate-300 font-mono">{recent}</span>
+                        </button>
+                        <button
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={(e) => { e.stopPropagation(); removeRecent(recent); }}
+                          aria-label={`Remove ${recent} from recent searches`}
+                          className="p-1.5 rounded text-slate-600 hover:text-ch-red opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
                     ))}
                   </>
                 )}

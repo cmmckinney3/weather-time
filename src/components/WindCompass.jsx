@@ -22,12 +22,12 @@ const TICKS = Array.from({ length: 16 }, (_, i) => {
 });
 
 const WindCompass = ({ windDegree = 0, windDir = 'N' }) => (
-  <div className="flex flex-col items-center">
+  <figure className="flex flex-col items-center m-0">
     <svg
       width={SIZE}
       height={SIZE}
       role="img"
-      aria-label={`Wind direction: ${windDir} at ${windDegree}°`}
+      aria-labelledby="wind-compass-caption"
     >
       <defs>
         {/* Compass face — dark radial gradient */}
@@ -155,10 +155,14 @@ const WindCompass = ({ windDegree = 0, windDir = 'N' }) => (
       <circle cx={CX} cy={CY} r={2.5} fill="#06b6d4" />
     </svg>
 
-    <p className="text-xs font-mono text-slate-400 mt-1 tracking-wider">
+    <figcaption
+      id="wind-compass-caption"
+      className="text-xs font-mono text-slate-400 mt-1 tracking-wider"
+    >
+      <span className="sr-only">Wind from </span>
       {windDir} · {windDegree}°
-    </p>
-  </div>
+    </figcaption>
+  </figure>
 );
 
 export default WindCompass;
