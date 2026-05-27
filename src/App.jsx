@@ -65,7 +65,10 @@ function App() {
       const res = await fetch(
         `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${encodeURIComponent(cityName)}&days=1`
       );
-      if (!res.ok) return;
+      if (!res.ok) {
+        setFavoriteWeather((prev) => ({ ...prev, [cityName]: { error: true } }));
+        return;
+      }
       const data = await res.json();
       setFavoriteWeather((prev) => ({
         ...prev,
@@ -76,9 +79,18 @@ function App() {
         },
       }));
     } catch {
-      // silently ignore — favorites still load without weather data
+      setFavoriteWeather((prev) => ({ ...prev, [cityName]: { error: true } }));
     }
   }, []); // API_KEY is a module-level constant; setFavoriteWeather setter is always stable
+
+  const retryFavoriteWeather = (cityName) => {
+    setFavoriteWeather((prev) => {
+      const next = { ...prev };
+      delete next[cityName];
+      return next;
+    });
+    fetchFavoriteWeather(cityName);
+  };
 
   const toggleFavorite = (cityName) => {
     setFavorites((prev) => {
@@ -408,11 +420,14 @@ function App() {
                         >
                           <Star size={12} className="text-ch-amber flex-shrink-0" fill="currentColor" />
                           <span className="text-sm text-slate-200 font-mono flex-1">{fav}</span>
-                          {fw && (
+                          {fw && !fw.error && (
                             <span className="text-xs font-mono text-slate-500 flex items-center gap-1">
                               {getWeatherIcon(fw.condition, 12)}
                               {tempUnit === "F" ? `${fw.temp_f}°F` : `${fw.temp_c}°C`}
                             </span>
+                          )}
+                          {fw?.error && (
+                            <span className="text-[10px] font-mono text-ch-red/80" title="Failed to load">—</span>
                           )}
                         </button>
                       );
@@ -522,22 +537,40 @@ function App() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {favorites.map((fav) => {
                 const fw = favoriteWeather[fav];
+                const hasData = fw && !fw.error;
                 return (
-                  <button
-                    key={fav}
-                    onClick={() => { setCity(fav); fetchWeather(fav); }}
-                    className="cockpit-btn rounded-lg px-4 py-3 text-left flex flex-col gap-1"
-                  >
-                    <span className="text-sm font-display truncate w-full">{fav}</span>
-                    {fw ? (
-                      <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400">
-                        {getWeatherIcon(fw.condition, 12)}
-                        <span>{tempUnit === "F" ? `${fw.temp_f}°F` : `${fw.temp_c}°C`}</span>
-                      </div>
-                    ) : (
-                      <span className="text-xs font-mono text-slate-600">Loading…</span>
+                  <div key={fav} className="relative">
+                    <button
+                      onClick={() => { setCity(fav); fetchWeather(fav); }}
+                      className="cockpit-btn w-full rounded-lg px-4 py-3 text-left flex flex-col gap-1"
+                    >
+                      <span className="text-sm font-display truncate w-full">{fav}</span>
+                      {hasData && (
+                        <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400">
+                          {getWeatherIcon(fw.condition, 12)}
+                          <span>{tempUnit === "F" ? `${fw.temp_f}°F` : `${fw.temp_c}°C`}</span>
+                        </div>
+                      )}
+                      {!fw && (
+                        <span className="text-xs font-mono text-slate-600">Loading…</span>
+                      )}
+                      {fw?.error && (
+                        <span className="text-xs font-mono text-ch-red/80 flex items-center gap-1">
+                          <X size={10} aria-hidden="true" />
+                          Failed to load
+                        </span>
+                      )}
+                    </button>
+                    {fw?.error && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); retryFavoriteWeather(fav); }}
+                        aria-label={`Retry loading weather for ${fav}`}
+                        className="absolute top-1.5 right-1.5 text-[10px] font-mono text-slate-500 hover:text-ch-cyan transition-colors px-1.5 py-0.5 rounded border border-cockpit-border bg-cockpit-deep/70"
+                      >
+                        Retry
+                      </button>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>

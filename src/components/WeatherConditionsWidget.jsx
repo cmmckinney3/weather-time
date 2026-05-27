@@ -8,12 +8,12 @@ import { getWeatherIcon, getPrecipitationSummary, getPrecipitationIntensity } fr
 import WindCompass from './WindCompass';
 
 const AQI_LEVELS = [
-  { label: 'Good',                  color: 'text-ch-emerald', bg: 'bg-ch-emerald/10', border: 'border-ch-emerald/30', glow: 'glow-emerald' },
-  { label: 'Moderate',              color: 'text-ch-amber',   bg: 'bg-ch-amber/10',   border: 'border-ch-amber/30',   glow: 'glow-amber' },
-  { label: 'Unhealthy (Sensitive)', color: 'text-orange-400', bg: 'bg-orange-400/10',  border: 'border-orange-400/30', glow: '' },
-  { label: 'Unhealthy',             color: 'text-ch-red',     bg: 'bg-ch-red/10',      border: 'border-ch-red/30',     glow: '' },
-  { label: 'Very Unhealthy',        color: 'text-purple-400', bg: 'bg-purple-400/10',  border: 'border-purple-400/30', glow: '' },
-  { label: 'Hazardous',             color: 'text-rose-400',   bg: 'bg-rose-400/10',    border: 'border-rose-400/30',   glow: '' },
+  { label: 'Good',                  color: 'text-ch-emerald', bg: 'bg-ch-emerald/10', border: 'border-ch-emerald/30', glow: 'glow-emerald', dot: 'bg-ch-emerald' },
+  { label: 'Moderate',              color: 'text-ch-amber',   bg: 'bg-ch-amber/10',   border: 'border-ch-amber/30',   glow: 'glow-amber',   dot: 'bg-ch-amber' },
+  { label: 'Unhealthy (Sensitive)', color: 'text-orange-400', bg: 'bg-orange-400/10',  border: 'border-orange-400/30', glow: '',             dot: 'bg-orange-400' },
+  { label: 'Unhealthy',             color: 'text-ch-red',     bg: 'bg-ch-red/10',      border: 'border-ch-red/30',     glow: '',             dot: 'bg-ch-red' },
+  { label: 'Very Unhealthy',        color: 'text-purple-400', bg: 'bg-purple-400/10',  border: 'border-purple-400/30', glow: '',             dot: 'bg-purple-400' },
+  { label: 'Hazardous',             color: 'text-rose-400',   bg: 'bg-rose-400/10',    border: 'border-rose-400/30',   glow: '',             dot: 'bg-rose-400' },
 ];
 
 const SEVERITY_STYLES = {
@@ -47,8 +47,12 @@ function RadialGauge({ value, max, label, unit, color, size = 100 }) {
   const offset = circumference * (1 - percentage);
 
   return (
-    <div className="flex flex-col items-center relative">
-      <svg width={size} height={size} className="transform -rotate-90">
+    <div
+      className="flex flex-col items-center relative"
+      role="img"
+      aria-label={`${label}: ${value} ${unit}`}
+    >
+      <svg width={size} height={size} className="transform -rotate-90" aria-hidden="true">
         {/* Background track */}
         <circle
           cx={size / 2}
@@ -74,11 +78,11 @@ function RadialGauge({ value, max, label, unit, color, size = 100 }) {
         />
       </svg>
       {/* Center label */}
-      <div className="absolute flex flex-col items-center justify-center" style={{ width: size, height: size }}>
+      <div className="absolute flex flex-col items-center justify-center" style={{ width: size, height: size }} aria-hidden="true">
         <span className="text-lg font-mono font-bold" style={{ color }}>{value}</span>
         <span className="text-[9px] text-slate-500 font-mono uppercase">{unit}</span>
       </div>
-      <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider mt-1.5">{label}</p>
+      <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider mt-1.5" aria-hidden="true">{label}</p>
     </div>
   );
 }
@@ -285,17 +289,35 @@ const WeatherConditionsWidget = ({ weather, tempUnit = "F" }) => {
       {/* Air Quality */}
       {aqi && (
         <div className={`glass-panel p-4 border ${aqi.border}`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Activity size={16} className={aqi.color} />
-              <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Activity size={16} className={`${aqi.color} flex-shrink-0`} aria-hidden="true" />
+              <div className="min-w-0">
                 <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Air Quality Index</p>
                 <p className={`text-sm font-mono font-bold ${aqi.color} ${aqi.glow}`}>{aqi.label}</p>
               </div>
             </div>
-            <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-md ${aqi.bg} ${aqi.color} border ${aqi.border}`}>
-              EPA {aqiIndex}/6
-            </span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Tier dots — colorblind-friendly severity indicator */}
+              <div
+                className="flex items-center gap-0.5"
+                role="img"
+                aria-label={`Severity ${aqiIndex} of 6`}
+              >
+                {[1, 2, 3, 4, 5, 6].map((tier) => (
+                  <span
+                    key={tier}
+                    aria-hidden="true"
+                    className={`w-1.5 h-3 rounded-sm transition-colors ${
+                      tier <= aqiIndex ? aqi.dot : 'bg-slate-700'
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-md ${aqi.bg} ${aqi.color} border ${aqi.border}`}>
+                {aqiIndex}/6
+              </span>
+            </div>
           </div>
         </div>
       )}

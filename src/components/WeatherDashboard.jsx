@@ -47,7 +47,16 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
 
       {/* Forecast day strips */}
       {forecast.forecastday.map((day, index) => {
-        const dayName = getDayName(index, day.date);
+        const isToday = index === 0;
+        // When the card is "today", show the date in the heading so the TODAY
+        // badge isn't redundant with a "Today" label.
+        const dayName = isToday
+          ? new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            })
+          : getDayName(index, day.date);
         const isExpanded = expandedDay === index;
         const hourlyData = isExpanded ? getHourlyData(index) : [];
         const rainChance = day.day.daily_chance_of_rain;
@@ -56,6 +65,8 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
           <div
             key={day.date}
             className={`glass-panel overflow-hidden transition-all duration-300 ${
+              isToday ? 'border-l-2 border-l-ch-cyan' : ''
+            } ${
               isExpanded ? 'shadow-glow-cyan' : 'hover:border-slate-600'
             }`}
           >
@@ -71,7 +82,15 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
                   {getWeatherIcon(day.day.condition, 28)}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-semibold text-slate-200 font-display text-sm">{dayName}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-slate-200 font-display text-sm">{dayName}</p>
+                    {isToday && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-widest bg-ch-cyan/15 text-ch-cyan border border-ch-cyan/30">
+                        <span className="live-dot bg-ch-cyan" aria-hidden="true" />
+                        Today
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500 truncate">{day.day.condition.text}</p>
                 </div>
               </div>
