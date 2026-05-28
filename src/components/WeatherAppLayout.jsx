@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, lazy, Suspense } from 'react';
 import WeatherDashboard from './WeatherDashboard';
-import DetailedForecast from './DetailedForecast';
-import WeatherConditionsWidget from './WeatherConditionsWidget';
-import PrecipitationRadar from './PrecipitationRadar';
-import USRadar from './USRadar';
-import { LayoutDashboard, LineChart, Gauge, CloudRain, AlertTriangle, Radar } from 'lucide-react';
+import { LayoutDashboard, LineChart, Gauge, CloudRain, AlertTriangle, Radar, Loader2 } from 'lucide-react';
+
+const DetailedForecast = lazy(() => import('./DetailedForecast'));
+const WeatherConditionsWidget = lazy(() => import('./WeatherConditionsWidget'));
+const PrecipitationRadar = lazy(() => import('./PrecipitationRadar'));
+const USRadar = lazy(() => import('./USRadar'));
 
 const VIEWS = [
   { id: 'dashboard', label: 'Dashboard', shortLabel: 'DASH', icon: LayoutDashboard },
@@ -113,11 +114,20 @@ const WeatherAppLayout = ({ weather, tempUnit }) => {
         tabIndex={0}
         className="animate-fade-in-up focus:outline-none"
       >
-        {activeView === 'dashboard' && <WeatherDashboard weather={weather} tempUnit={tempUnit} />}
-        {activeView === 'forecast' && <DetailedForecast weather={weather} tempUnit={tempUnit} />}
-        {activeView === 'conditions' && <WeatherConditionsWidget weather={weather} tempUnit={tempUnit} />}
-        {activeView === 'precipitation' && <PrecipitationRadar weather={weather} />}
-        {activeView === 'radar' && <USRadar weather={weather} />}
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-24 text-slate-500" role="status" aria-live="polite">
+              <Loader2 size={20} className="animate-spin text-ch-cyan" aria-hidden="true" />
+              <span className="ml-3 font-mono text-xs uppercase tracking-wider">Loading view…</span>
+            </div>
+          }
+        >
+          {activeView === 'dashboard' && <WeatherDashboard weather={weather} tempUnit={tempUnit} />}
+          {activeView === 'forecast' && <DetailedForecast weather={weather} tempUnit={tempUnit} />}
+          {activeView === 'conditions' && <WeatherConditionsWidget weather={weather} tempUnit={tempUnit} />}
+          {activeView === 'precipitation' && <PrecipitationRadar weather={weather} />}
+          {activeView === 'radar' && <USRadar weather={weather} />}
+        </Suspense>
       </div>
     </div>
   );
