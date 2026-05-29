@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import WeatherAppLayout from "./components/WeatherAppLayout";
 import { MapPin, Search, Compass, Zap, Droplets, Wind, X, Clock, Radio, Star } from "lucide-react";
 import { getWeatherRecommendation, getWeatherIcon } from "./utils/weatherUtils";
-
-const API_KEY = import.meta.env.VITE_API_KEY;
+import { fetchForecastWeather, searchLocations } from "./services/weatherApi";
 
 const WEATHER_QUOTES = {
   sunny: [
@@ -63,14 +62,7 @@ function App() {
 
   const fetchFavoriteWeather = useCallback(async (cityName) => {
     try {
-      const res = await fetch(
-        `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${encodeURIComponent(cityName)}&days=1`
-      );
-      if (!res.ok) {
-        setFavoriteWeather((prev) => ({ ...prev, [cityName]: { error: true } }));
-        return;
-      }
-      const data = await res.json();
+      const data = await fetchForecastWeather(cityName, { days: 1, aqi: false, alerts: false });
       setFavoriteWeather((prev) => ({
         ...prev,
         [cityName]: {
@@ -82,7 +74,7 @@ function App() {
     } catch {
       setFavoriteWeather((prev) => ({ ...prev, [cityName]: { error: true } }));
     }
-  }, []); // API_KEY is a module-level constant; setFavoriteWeather setter is always stable
+  }, []);
 
   const retryFavoriteWeather = (cityName) => {
     setFavoriteWeather((prev) => {
@@ -129,14 +121,7 @@ function App() {
     setError(null);
     setShowRecents(false);
     try {
-      const res = await fetch(
-        `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${encodeURIComponent(query)}&days=3&aqi=yes&alerts=yes`
-      );
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error?.message || "Could not fetch weather data");
-      }
-      const data = await res.json();
+      const data = await fetchForecastWeather(query);
       setWeather(data);
       lastQueryRef.current = query;
       localStorage.setItem("weather_last_city", query);
@@ -174,11 +159,8 @@ function App() {
   useEffect(() => {
     const id = setInterval(() => {
       if (!lastQueryRef.current) return;
-      fetch(
-        `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${encodeURIComponent(lastQueryRef.current)}&days=3&aqi=yes&alerts=yes`
-      )
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => { if (data) setWeather(data); })
+      fetchForecastWeather(lastQueryRef.current)
+        .then(setWeather)
         .catch(() => {});
     }, 20 * 60 * 1000);
     return () => clearInterval(id);
@@ -216,11 +198,7 @@ function App() {
     }
     autocompleteTimerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `https://api.weatherapi.com/v1/search.json?key=${API_KEY}&q=${encodeURIComponent(value)}`
-        );
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await searchLocations(value);
         setAutocompleteResults(data);
         setAutocompleteSearched(true);
         setShowAutocomplete(true);

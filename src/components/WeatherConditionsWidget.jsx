@@ -23,6 +23,34 @@ const SEVERITY_STYLES = {
   Minor:   'bg-yellow-400/20 text-yellow-400 border-yellow-400/40',
 };
 
+const AIR_POLLUTANTS = [
+  { key: 'pm2_5', label: 'PM2.5', unit: 'µg/m³', accent: 'text-ch-magenta' },
+  { key: 'pm10', label: 'PM10', unit: 'µg/m³', accent: 'text-ch-amber' },
+  { key: 'o3', label: 'O₃', unit: 'µg/m³', accent: 'text-ch-cyan' },
+  { key: 'no2', label: 'NO₂', unit: 'µg/m³', accent: 'text-orange-400' },
+  { key: 'so2', label: 'SO₂', unit: 'µg/m³', accent: 'text-purple-400' },
+  { key: 'co', label: 'CO', unit: 'µg/m³', accent: 'text-slate-200' },
+];
+
+const ALERT_METADATA_FIELDS = [
+  { key: 'urgency', label: 'Urgency' },
+  { key: 'certainty', label: 'Certainty' },
+  { key: 'category', label: 'Category' },
+  { key: 'msgtype', label: 'Type' },
+];
+
+function isPresent(value) {
+  return value !== undefined && value !== null && value !== '';
+}
+
+function formatPollutant(value) {
+  if (!Number.isFinite(Number(value))) return value;
+  const number = Number(value);
+  if (number >= 100) return Math.round(number).toLocaleString();
+  if (number >= 10) return number.toFixed(1);
+  return number.toFixed(2);
+}
+
 function getUvColor(uv) {
   if (uv <= 2) return '#34d399';
   if (uv <= 5) return '#fbbf24';
@@ -102,7 +130,12 @@ const WeatherConditionsWidget = ({ weather, tempUnit = "F" }) => {
   const precipIntensity = getPrecipitationIntensity(precipSummary.chanceOfRain);
 
   const aqiIndex = current.air_quality?.['us-epa-index'];
+  const gbDefraIndex = current.air_quality?.['gb-defra-index'];
   const aqi = aqiIndex >= 1 && aqiIndex <= 6 ? AQI_LEVELS[aqiIndex - 1] : null;
+  const pollutants = AIR_POLLUTANTS
+    .map((pollutant) => ({ ...pollutant, value: current.air_quality?.[pollutant.key] }))
+    .filter((pollutant) => isPresent(pollutant.value));
+  const hasAirQuality = Boolean(aqi || isPresent(gbDefraIndex) || pollutants.length > 0);
   const alerts = weather.alerts?.alert ?? [];
 
   const toggleAlert = (i) => setExpandedAlert(expandedAlert === i ? null : i);
@@ -287,38 +320,65 @@ const WeatherConditionsWidget = ({ weather, tempUnit = "F" }) => {
       </div>
 
       {/* Air Quality */}
-      {aqi && (
-        <div className={`glass-panel p-4 border ${aqi.border}`}>
-          <div className="flex items-center justify-between gap-3">
+      {hasAirQuality && (
+        <div className={`glass-panel p-4 border ${aqi?.border ?? 'border-cockpit-border'}`}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <Activity size={16} className={`${aqi.color} flex-shrink-0`} aria-hidden="true" />
+              <Activity size={16} className={`${aqi?.color ?? 'text-ch-cyan'} flex-shrink-0`} aria-hidden="true" />
               <div className="min-w-0">
                 <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Air Quality Index</p>
-                <p className={`text-sm font-mono font-bold ${aqi.color} ${aqi.glow}`}>{aqi.label}</p>
+                <p className={`text-sm font-mono font-bold ${aqi?.color ?? 'text-slate-300'} ${aqi?.glow ?? ''}`}>
+                  {aqi?.label ?? 'Details available'}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-auto">
               {/* Tier dots — colorblind-friendly severity indicator */}
-              <div
-                className="flex items-center gap-0.5"
-                role="img"
-                aria-label={`Severity ${aqiIndex} of 6`}
-              >
-                {[1, 2, 3, 4, 5, 6].map((tier) => (
-                  <span
-                    key={tier}
-                    aria-hidden="true"
-                    className={`w-1.5 h-3 rounded-sm transition-colors ${
-                      tier <= aqiIndex ? aqi.dot : 'bg-slate-700'
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-md ${aqi.bg} ${aqi.color} border ${aqi.border}`}>
-                {aqiIndex}/6
-              </span>
+              {aqi && (
+                <>
+                  <div
+                    className="flex items-center gap-0.5"
+                    role="img"
+                    aria-label={`Severity ${aqiIndex} of 6`}
+                  >
+                    {[1, 2, 3, 4, 5, 6].map((tier) => (
+                      <span
+                        key={tier}
+                        aria-hidden="true"
+                        className={`w-1.5 h-3 rounded-sm transition-colors ${
+                          tier <= aqiIndex ? aqi.dot : 'bg-slate-700'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-md ${aqi.bg} ${aqi.color} border ${aqi.border}`}>
+                    EPA {aqiIndex}/6
+                  </span>
+                </>
+              )}
+              {isPresent(gbDefraIndex) && (
+                <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-md bg-slate-800/70 text-slate-300 border border-cockpit-border" title="UK DEFRA Daily Air Quality Index">
+                  DEFRA {gbDefraIndex}/10
+                </span>
+              )}
             </div>
           </div>
+          {pollutants.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-cockpit-border" aria-label="Air pollutant concentrations">
+              <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mb-2">Pollutants</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                {pollutants.map((pollutant) => (
+                  <div key={pollutant.key} className="glass-panel-flush rounded-lg p-2.5 min-w-0">
+                    <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">{pollutant.label}</p>
+                    <p className={`text-sm font-mono font-semibold ${pollutant.accent}`}>
+                      {formatPollutant(pollutant.value)}
+                    </p>
+                    <p className="text-[9px] text-slate-600 font-mono">{pollutant.unit}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -334,12 +394,15 @@ const WeatherConditionsWidget = ({ weather, tempUnit = "F" }) => {
           {alerts.map((alert, i) => {
             const isOpen = expandedAlert === i;
             const severityStyle = SEVERITY_STYLES[alert.severity] ?? 'bg-ch-amber/20 text-ch-amber border-ch-amber/40';
+            const alertMetadata = ALERT_METADATA_FIELDS.filter(({ key }) => isPresent(alert[key]));
+            const alertPanelId = `weather-alert-${i}`;
             return (
               <div key={alert.headline || i} className="glass-panel overflow-hidden border-l-2 border-l-ch-amber">
                 <button
                   onClick={() => toggleAlert(i)}
                   className="w-full flex items-start justify-between p-3 text-left hover:bg-white/[0.02] transition-colors"
                   aria-expanded={isOpen}
+                  aria-controls={alertPanelId}
                 >
                   <div className="flex items-start gap-2 flex-1 min-w-0">
                     <AlertTriangle className="text-ch-amber flex-shrink-0 mt-0.5" size={14} />
@@ -359,9 +422,19 @@ const WeatherConditionsWidget = ({ weather, tempUnit = "F" }) => {
                 </button>
 
                 {isOpen && (
-                  <div className="px-4 pb-4 border-t border-cockpit-border pt-3 space-y-2 text-xs">
+                  <div id={alertPanelId} className="px-4 pb-4 border-t border-cockpit-border pt-3 space-y-2 text-xs">
                     {alert.event && (
                       <p className="text-slate-300"><span className="text-slate-500 font-mono">EVENT:</span> {alert.event}</p>
+                    )}
+                    {alertMetadata.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" aria-label="Alert metadata">
+                        {alertMetadata.map(({ key, label }) => (
+                          <div key={key} className="bg-cockpit-deep/50 rounded-md border border-cockpit-border px-2 py-1.5">
+                            <p className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">{label}</p>
+                            <p className="text-[11px] text-slate-300 font-mono font-semibold truncate" title={alert[key]}>{alert[key]}</p>
+                          </div>
+                        ))}
+                      </div>
                     )}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                       {alert.effective && (
@@ -377,6 +450,9 @@ const WeatherConditionsWidget = ({ weather, tempUnit = "F" }) => {
                     </div>
                     {alert.areas && (
                       <p className="text-slate-400"><span className="text-slate-500 font-mono">AREAS:</span> {alert.areas}</p>
+                    )}
+                    {alert.note && (
+                      <p className="text-slate-400"><span className="text-slate-500 font-mono">NOTE:</span> {alert.note}</p>
                     )}
                     {alert.desc && (
                       <div className="max-h-40 overflow-y-auto bg-cockpit-deep/60 rounded-lg p-3 border border-cockpit-border">

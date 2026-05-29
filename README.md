@@ -1,70 +1,85 @@
-# Getting Started with Create React App
+# Weather My Way
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Weather My Way is a Vite + React weather dashboard styled with Tailwind CSS. It uses [WeatherAPI.com](https://www.weatherapi.com/) to search locations and display current conditions, forecast details, and weather-related guidance.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- Search by city, ZIP code, or coordinates with WeatherAPI.com autocomplete.
+- Use browser geolocation to load weather for the current location.
+- Current conditions with temperature unit toggle (°F/°C), condition icon, and practical recommendation.
+- 3-day forecast with expandable hourly breakdowns, precipitation, wind, humidity, UV, visibility, and astronomy details.
+- Favorites and recent searches saved in `localStorage`.
+- Radar/map-oriented components and responsive Tailwind UI.
 
-### `npm start`
+## Tech stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Vite 5
+- React 19
+- Tailwind CSS 3
+- Vitest + Testing Library
+- WeatherAPI.com Forecast and Search APIs
+- Supporting libraries: Lucide React, Recharts, Leaflet/React Leaflet, zipcodes
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Setup
 
-### `npm test`
+1. Install dependencies:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+   ```bash
+   npm install
+   ```
 
-### `npm run build`
+2. Create `.env.local` in the project root with your WeatherAPI.com key:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+   ```env
+   VITE_API_KEY=your_weatherapi_key
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+3. Start the development server:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+   ```bash
+   npm start
+   ```
 
-### `npm run eject`
+   Vite will print the local dev URL, typically `http://localhost:5173/`.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Scripts
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- `npm start` - run the Vite development server.
+- `npm run build` - create a production build in `dist/`.
+- `npm run preview` - preview the production build locally.
+- `npm test` - run the Vitest test suite.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Project structure
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```text
+weather-time/
+├── public/                 # Static assets copied into the build
+├── src/
+│   ├── components/         # Weather dashboard, radar, forecast, and UI components
+│   ├── components/shared/  # Shared display helpers
+│   ├── services/           # WeatherAPI.com client helpers
+│   ├── utils/              # Weather formatting and recommendation helpers
+│   ├── App.jsx             # Main app state, search, favorites, layout
+│   ├── index.css           # Tailwind and custom styles
+│   └── index.jsx           # React entry point
+├── vite.config.js          # Vite and Vitest configuration
+├── tailwind.config.js      # Tailwind theme/configuration
+└── package.json            # Dependencies and npm scripts
+```
 
-## Learn More
+## API key and security notes
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- `VITE_API_KEY` is read in the browser via Vite's `import.meta.env`, so it is included in the client bundle. Do not treat this as a secret in a public deployment.
+- Do not commit `.env`, `.env.local`, or real API keys.
+- WeatherAPI.com free-tier limits may apply. If the app stops returning data, check your quota, key status, and request parameters.
+- For stronger key protection, proxy WeatherAPI.com requests through a backend you control instead of calling the API directly from the browser.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Deployment
 
-### Code Splitting
+Run:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+```bash
+npm run build
+```
 
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+The production output is written to `dist/`. Deploy the contents of `dist/` to any static hosting provider that supports single-page apps, and configure `VITE_API_KEY` in the host's build environment before building.

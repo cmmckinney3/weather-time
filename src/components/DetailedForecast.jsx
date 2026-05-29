@@ -18,6 +18,20 @@ const CockpitTooltip = ({ active, payload, label }) => {
   );
 };
 
+const displayNumber = (value, decimals = 0) => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  return Number(value).toFixed(decimals);
+};
+
+const displayPercent = (value) => (value === null || value === undefined ? '—' : `${value}%`);
+
+const getSnowSignal = (chanceOfSnow, willItSnow) => {
+  if (willItSnow === 1) return 'Expected';
+  if (chanceOfSnow >= 40) return 'Likely';
+  if (chanceOfSnow > 0) return 'Possible';
+  return 'None';
+};
+
 const DetailedForecast = ({ weather, tempUnit = "F" }) => {
   const [selectedDay, setSelectedDay] = useState(0);
 
@@ -36,9 +50,18 @@ const DetailedForecast = ({ weather, tempUnit = "F" }) => {
     feelsLike: tempUnit === "F" ? hour.feelslike_f : hour.feelslike_c,
     condition: hour.condition.text,
     chanceOfRain: hour.chance_of_rain,
+    chanceOfSnow: hour.chance_of_snow,
+    willItSnow: hour.will_it_snow,
     precipAmount: hour.precip_in,
     wind: hour.wind_mph,
+    windDir: hour.wind_dir,
+    gust: hour.gust_mph,
     humidity: hour.humidity,
+    cloud: hour.cloud,
+    uv: hour.uv,
+    visibility: hour.vis_miles,
+    pressure: hour.pressure_mb,
+    dewPoint: tempUnit === "F" ? hour.dewpoint_f : hour.dewpoint_c,
     icon: hour.condition.icon
   }));
 
@@ -158,34 +181,49 @@ const DetailedForecast = ({ weather, tempUnit = "F" }) => {
       <div className="glass-panel p-5">
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest font-mono mb-3">Hourly Data</h3>
         <div className="scroll-fade-x overflow-x-auto rounded-lg border border-cockpit-border">
-          <table className="min-w-full">
+          <table className="min-w-[1180px] w-full">
             <thead>
               <tr className="bg-cockpit-deep/60">
-                {['Time', 'Condition', 'Temp', 'Feels', 'Precip', 'Wind', 'Humid'].map(h => (
-                  <th key={h} className="px-4 py-2.5 text-left text-[10px] font-mono text-slate-500 uppercase tracking-wider">{h}</th>
+                {['Time', 'Condition', 'Temp', 'Feels', 'Dew', 'Precip', 'Snow', 'Wind', 'Gust', 'Cloud', 'UV', 'Vis', 'Pressure', 'Humid'].map(h => (
+                  <th key={h} className="px-3 py-2.5 text-left text-[10px] font-mono text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-cockpit-border/50">
               {formattedHourlyData.map((hour, i) => (
                 <tr key={i} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="px-4 py-2.5 text-xs font-mono font-medium text-slate-300">{hour.time}</td>
-                  <td className="px-4 py-2.5 text-xs text-slate-400 flex items-center gap-2">
+                  <td className="px-3 py-2.5 text-xs font-mono font-medium text-slate-300 whitespace-nowrap">{hour.time}</td>
+                  <td className="px-3 py-2.5 text-xs text-slate-400 flex items-center gap-2">
                     <img src={hour.icon} alt={hour.condition} className="w-6 h-6" />
                     <span className="hidden md:inline truncate max-w-[140px]">{hour.condition}</span>
                   </td>
-                  <td className="px-4 py-2.5 text-xs font-mono text-ch-cyan font-semibold">{hour.temp}°{tempUnit}</td>
-                  <td className="px-4 py-2.5 text-xs font-mono text-slate-400">{hour.feelsLike}°{tempUnit}</td>
-                  <td className="px-4 py-2.5 text-xs font-mono">
+                  <td className="px-3 py-2.5 text-xs font-mono text-ch-cyan font-semibold whitespace-nowrap">{displayNumber(hour.temp)}°{tempUnit}</td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-slate-400 whitespace-nowrap">{displayNumber(hour.feelsLike)}°{tempUnit}</td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-slate-400 whitespace-nowrap">{displayNumber(hour.dewPoint)}°{tempUnit}</td>
+                  <td className="px-3 py-2.5 text-xs font-mono whitespace-nowrap">
                     <span className={hour.chanceOfRain >= 40 ? 'text-ch-magenta font-semibold' : 'text-slate-500'}>
-                      {hour.chanceOfRain}%
+                      {displayPercent(hour.chanceOfRain)}
                     </span>
                     {hour.precipAmount > 0 && (
                       <span className="text-ch-magenta text-[10px] ml-1">{hour.precipAmount}"</span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-xs font-mono text-ch-amber">{hour.wind} mph</td>
-                  <td className="px-4 py-2.5 text-xs font-mono text-slate-400">{hour.humidity}%</td>
+                  <td className="px-3 py-2.5 text-xs font-mono whitespace-nowrap">
+                    <span className={hour.willItSnow === 1 || hour.chanceOfSnow >= 40 ? 'text-ch-cyan font-semibold' : 'text-slate-500'}>
+                      {displayPercent(hour.chanceOfSnow)}
+                    </span>
+                    <span className="text-[10px] text-slate-600 ml-1">{getSnowSignal(hour.chanceOfSnow, hour.willItSnow)}</span>
+                  </td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-ch-amber whitespace-nowrap">
+                    {displayNumber(hour.wind)} mph
+                    {hour.windDir && <span className="text-[10px] text-slate-500 ml-1">{hour.windDir}</span>}
+                  </td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-ch-amber whitespace-nowrap">{displayNumber(hour.gust)} mph</td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-slate-400 whitespace-nowrap">{displayPercent(hour.cloud)}</td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-slate-400 whitespace-nowrap">{displayNumber(hour.uv, 1)}</td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-slate-400 whitespace-nowrap">{displayNumber(hour.visibility, 1)} mi</td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-slate-400 whitespace-nowrap">{displayNumber(hour.pressure)} mb</td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-slate-400 whitespace-nowrap">{displayPercent(hour.humidity)}</td>
                 </tr>
               ))}
             </tbody>

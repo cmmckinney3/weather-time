@@ -1,10 +1,85 @@
 import React, { useState } from 'react';
 import {
   Droplets, ThermometerSun, ThermometerSnowflake, Calendar, Clock,
-  ChevronDown, ChevronUp, Wind, Eye, Sunrise, Sunset, Moon, MoonStar
+  ChevronDown, ChevronUp, Sunrise, Sunset, Moon, MoonStar, CloudSnow, Umbrella
 } from 'lucide-react';
 import { getWeatherIcon, formatTime, getDayName, filterHourlyData } from '../utils/weatherUtils';
-import PrecipitationInfo, { HourlyPrecipIndicator } from './shared/PrecipitationInfo';
+import { HourlyPrecipIndicator } from './shared/PrecipitationInfo';
+
+const toNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const isExpected = (value) => toNumber(value) === 1 || value === true;
+
+const formatAmount = (value, suffix, decimals = 2) => {
+  const amount = toNumber(value);
+  if (amount <= 0) return `0${suffix}`;
+  return `${amount.toFixed(decimals).replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')}${suffix}`;
+};
+
+const getHourlyPrecipWindow = (hours = [], mode = 'rain') => {
+  const activeHours = hours
+    .filter((hour) => {
+      const chance = toNumber(mode === 'snow' ? hour.chance_of_snow : hour.chance_of_rain);
+      const willIt = isExpected(mode === 'snow' ? hour.will_it_snow : hour.will_it_rain);
+      const amount = mode === 'snow' ? toNumber(hour.snow_cm) : toNumber(hour.precip_in);
+      return willIt || chance >= 40 || amount > 0;
+    })
+    .map((hour) => ({
+      time: hour.time,
+      chance: toNumber(mode === 'snow' ? hour.chance_of_snow : hour.chance_of_rain),
+    }));
+
+  if (activeHours.length === 0) return null;
+
+  const first = activeHours[0];
+  const last = activeHours[activeHours.length - 1];
+  const peak = activeHours.reduce((highest, hour) => (hour.chance > highest.chance ? hour : highest), first);
+
+  const start = formatTime(first.time);
+  const end = formatTime(last.time);
+  return {
+    range: start === end ? start : `${start}-${end}`,
+    peak: `${formatTime(peak.time)} peak`,
+    peakChance: peak.chance,
+  };
+};
+
+const getDailyHydroIntel = (dayData, tempUnit) => {
+  const day = dayData.day;
+  const rainChance = toNumber(day.daily_chance_of_rain);
+  const snowChance = toNumber(day.daily_chance_of_snow);
+  const willRain = isExpected(day.daily_will_it_rain);
+  const willSnow = isExpected(day.daily_will_it_snow);
+  const precipTotal = tempUnit === 'F'
+    ? formatAmount(day.totalprecip_in, '"')
+    : formatAmount(day.totalprecip_mm, ' mm', 1);
+  const snowTotal = formatAmount(day.totalsnow_cm, ' cm', 1);
+  const rainWindow = getHourlyPrecipWindow(dayData.hour, 'rain');
+  const snowWindow = getHourlyPrecipWindow(dayData.hour, 'snow');
+
+  const signals = [];
+  if (willRain || rainChance > 0) {
+    signals.push(`${willRain ? 'Rain expected' : 'Rain possible'} (${rainChance}%)${rainWindow ? ` around ${rainWindow.range}` : ''}`);
+  }
+  if (willSnow || snowChance > 0 || toNumber(day.totalsnow_cm) > 0) {
+    signals.push(`${willSnow ? 'Snow expected' : 'Snow possible'} (${snowChance}%)${snowWindow ? ` around ${snowWindow.range}` : ''}`);
+  }
+
+  return {
+    rainChance,
+    snowChance,
+    willRain,
+    willSnow,
+    precipTotal,
+    snowTotal,
+    rainWindow,
+    snowWindow,
+    summary: signals.length > 0 ? signals.join(' • ') : 'No rain or snow signal in the daily forecast.',
+  };
+};
 
 const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
   const [expandedDay, setExpandedDay] = useState(null);
@@ -28,7 +103,9 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
       condition: hour.condition.text,
       icon: hour.condition.icon,
       chanceOfRain: hour.chance_of_rain,
+      chanceOfSnow: hour.chance_of_snow,
       precip_in: hour.precip_in,
+      snow_cm: hour.snow_cm,
       wind: hour.wind_mph,
       humidity: hour.humidity,
       hourData: hour
@@ -59,7 +136,9 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
           : getDayName(index, day.date);
         const isExpanded = expandedDay === index;
         const hourlyData = isExpanded ? getHourlyData(index) : [];
-        const rainChance = day.day.daily_chance_of_rain;
+        const hydroIntel = getDailyHydroIntel(day, tempUnit);
+        const rainChance = hydroIntel.rainChance;
+        const snowChance = hydroIntel.snowChance;
 
         return (
           <div
@@ -95,14 +174,37 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-5">
-                {/* Rain channel */}
-                <div className="hidden sm:flex items-center gap-1.5">
-                  <Droplets size={12} className="text-ch-magenta" />
+              <div className="flex items-center gap-4 sm:gap-5">
+                {/* Hydro channels */}
+                <div className="hidden sm:flex items-center gap-3" aria-label={`Rain chance ${rainChance} percent, snow chance ${snowChance} percent`}>
+                  <div className="flex items-center gap-1.5">
+                    <Droplets size={12} className={hydroIntel.willRain ? 'text-ch-magenta' : 'text-slate-500'} />
+                    <span className={`text-xs font-mono font-medium ${
+                      rainChance >= 60 || hydroIntel.willRain ? 'text-ch-magenta glow-magenta' : 'text-slate-400'
+                    }`}>
+                      {rainChance}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CloudSnow size={12} className={hydroIntel.willSnow ? 'text-ch-cyan' : 'text-slate-500'} />
+                    <span className={`text-xs font-mono font-medium ${
+                      snowChance >= 40 || hydroIntel.willSnow ? 'text-ch-cyan' : 'text-slate-400'
+                    }`}>
+                      {snowChance}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="sm:hidden flex items-center gap-1.5" aria-label={`Highest rain or snow chance ${Math.max(rainChance, snowChance)} percent`}>
+                  {snowChance > rainChance ? (
+                    <CloudSnow size={12} className={hydroIntel.willSnow ? 'text-ch-cyan' : 'text-slate-500'} />
+                  ) : (
+                    <Droplets size={12} className={hydroIntel.willRain ? 'text-ch-magenta' : 'text-slate-500'} />
+                  )}
                   <span className={`text-xs font-mono font-medium ${
-                    rainChance >= 60 ? 'text-ch-magenta glow-magenta' : 'text-slate-400'
+                    Math.max(rainChance, snowChance) >= 60 ? 'text-ch-magenta glow-magenta' : 'text-slate-400'
                   }`}>
-                    {rainChance}%
+                    {Math.max(rainChance, snowChance)}%
                   </span>
                 </div>
 
@@ -134,6 +236,42 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
             {/* Expanded detail panel */}
             {isExpanded && (
               <div className="border-t border-cockpit-border p-4 space-y-4 bg-cockpit-deep/30">
+                {/* Daily precipitation / snow intelligence */}
+                <div className="glass-panel-flush rounded-lg p-3 border border-cockpit-border/70" role="group" aria-label={`${dayName} precipitation and snow summary`}>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="p-2 rounded-lg bg-cockpit-deep/60 border border-cockpit-border">
+                        {hydroIntel.willSnow ? (
+                          <CloudSnow size={18} className="text-ch-cyan" />
+                        ) : (
+                          <Umbrella size={18} className={hydroIntel.willRain ? 'text-ch-magenta' : 'text-slate-500'} />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono mb-1">Hydro Intel</p>
+                        <p className="text-xs text-slate-300 leading-relaxed">{hydroIntel.summary}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:min-w-[360px]">
+                      {[
+                        { label: hydroIntel.willRain ? 'Rain Expected' : 'Rain Chance', value: `${rainChance}%`, color: rainChance >= 60 || hydroIntel.willRain ? 'text-ch-magenta' : 'text-slate-400', icon: Droplets },
+                        { label: hydroIntel.willSnow ? 'Snow Expected' : 'Snow Chance', value: `${snowChance}%`, color: snowChance >= 40 || hydroIntel.willSnow ? 'text-ch-cyan' : 'text-slate-400', icon: CloudSnow },
+                        { label: 'Liquid Total', value: hydroIntel.precipTotal, color: 'text-ch-magenta', icon: Droplets },
+                        { label: 'Snow Total', value: hydroIntel.snowTotal, color: 'text-ch-cyan', icon: CloudSnow },
+                      ].map((item) => (
+                        <div key={item.label} className="rounded-md bg-cockpit-deep/50 border border-cockpit-border/60 p-2">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <item.icon size={11} className={item.color} />
+                            <p className="text-[9px] text-slate-500 uppercase tracking-wider font-mono truncate">{item.label}</p>
+                          </div>
+                          <p className={`text-xs font-mono font-semibold ${item.color}`}>{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Metrics grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[
@@ -141,9 +279,10 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
                     { label: 'Humidity', value: `${day.day.avghumidity}%`, color: 'text-ch-magenta' },
                     { label: 'Max Wind', value: `${day.day.maxwind_mph} mph`, color: 'text-ch-amber' },
                     { label: 'UV Index', value: day.day.uv, color: 'text-ch-amber' },
-                    { label: 'Precip', value: `${day.day.totalprecip_in}"`, color: 'text-ch-magenta' },
-                    { label: 'Rain', value: `${day.day.daily_chance_of_rain}%`, color: 'text-ch-magenta' },
-                    { label: 'Snow', value: `${day.day.daily_chance_of_snow}%`, color: 'text-blue-300' },
+                    { label: 'Rain Flag', value: hydroIntel.willRain ? 'YES' : 'NO', color: hydroIntel.willRain ? 'text-ch-magenta' : 'text-slate-400' },
+                    { label: 'Snow Flag', value: hydroIntel.willSnow ? 'YES' : 'NO', color: hydroIntel.willSnow ? 'text-ch-cyan' : 'text-slate-400' },
+                    { label: 'Rain Peak', value: hydroIntel.rainWindow ? `${hydroIntel.rainWindow.peakChance}% ${hydroIntel.rainWindow.peak}` : 'None', color: hydroIntel.rainWindow ? 'text-ch-magenta' : 'text-slate-500' },
+                    { label: 'Snow Peak', value: hydroIntel.snowWindow ? `${hydroIntel.snowWindow.peakChance}% ${hydroIntel.snowWindow.peak}` : 'None', color: hydroIntel.snowWindow ? 'text-ch-cyan' : 'text-slate-500' },
                     { label: 'Visibility', value: `${day.day.avgvis_miles} mi`, color: 'text-slate-300' },
                   ].map((metric) => (
                     <div key={metric.label} className="glass-panel-flush rounded-lg p-3">
@@ -201,6 +340,7 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
                           <th className="py-2 px-3 text-left text-[10px] font-mono text-slate-500 uppercase tracking-wider">Cond</th>
                           <th className="py-2 px-3 text-left text-[10px] font-mono text-slate-500 uppercase tracking-wider">Temp</th>
                           <th className="py-2 px-3 text-left text-[10px] font-mono text-slate-500 uppercase tracking-wider">Rain</th>
+                          <th className="py-2 px-3 text-left text-[10px] font-mono text-slate-500 uppercase tracking-wider">Snow</th>
                           <th className="py-2 px-3 text-left text-[10px] font-mono text-slate-500 uppercase tracking-wider">Wind</th>
                         </tr>
                       </thead>
@@ -217,6 +357,17 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
                             </td>
                             <td className="py-2 px-3 text-xs font-mono">
                               <HourlyPrecipIndicator hour={hour.hourData} compact={true} />
+                            </td>
+                            <td className="py-2 px-3 text-xs font-mono">
+                              <div className="flex items-center gap-1">
+                                <CloudSnow className={toNumber(hour.chanceOfSnow) > 0 || toNumber(hour.snow_cm) > 0 ? 'text-ch-cyan' : 'text-slate-600'} size={10} />
+                                <span className={toNumber(hour.chanceOfSnow) > 0 || toNumber(hour.snow_cm) > 0 ? 'text-ch-cyan' : 'text-slate-500'}>
+                                  {toNumber(hour.chanceOfSnow)}%
+                                </span>
+                                {toNumber(hour.snow_cm) > 0 && (
+                                  <span className="text-[10px] text-slate-400">{formatAmount(hour.snow_cm, ' cm', 1)}</span>
+                                )}
+                              </div>
                             </td>
                             <td className="py-2 px-3 text-xs font-mono text-ch-amber">{hour.wind} mph</td>
                           </tr>
