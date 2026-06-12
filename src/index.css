@@ -4,66 +4,269 @@
 
 @layer base {
   :root {
-    /* Cockpit surface palette */
-    --cockpit-deep: #020617;
-    --cockpit-base: #0f172a;
-    --cockpit-panel: #1e293b;
-    --cockpit-border: #334155;
-    --cockpit-glass: rgba(255, 255, 255, 0.04);
+    /*
+     * Surfaces + primary accent are RGB triplets so Tailwind opacity
+     * modifiers (e.g. bg-cockpit-deep/60, text-ch-cyan/70) keep working.
+     * The active atmosphere (data-atmo on the app root) re-tints them all.
+     */
+    --surface-deep: 2 6 23;
+    --surface-base: 11 18 38;
+    --surface-panel: 24 33 58;
+    --surface-border: 51 65 85;
 
-    /* Data-channel accent colors */
-    --ch-cyan: #22d3ee;
-    --ch-cyan-dim: #0891b2;
-    --ch-amber: #fbbf24;
-    --ch-amber-dim: #b45309;
-    --ch-magenta: #f472b6;
-    --ch-magenta-dim: #be185d;
-    --ch-emerald: #34d399;
-    --ch-emerald-dim: #059669;
-    --ch-red: #f87171;
+    --accent: 34 211 238;
+    --accent-dim: 8 145 178;
 
-    /* Text hierarchy */
+    /* Aurora wash colors for the ambient background */
+    --aurora-1: 14 116 144;
+    --aurora-2: 30 64 175;
+
     --text-primary: #f1f5f9;
     --text-secondary: #94a3b8;
     --text-tertiary: #64748b;
+  }
 
-    /* Glow effects */
-    --glow-cyan: 0 0 20px rgba(34, 211, 238, 0.25);
-    --glow-amber: 0 0 20px rgba(251, 191, 36, 0.25);
-    --glow-magenta: 0 0 20px rgba(244, 114, 182, 0.25);
-    --glow-emerald: 0 0 20px rgba(52, 211, 153, 0.25);
+  /* ── Atmospheres — driven by live conditions ─────────────────── */
+
+  [data-atmo='clear-day'] {
+    --surface-deep: 16 11 7;
+    --surface-base: 30 21 14;
+    --surface-panel: 48 35 24;
+    --surface-border: 92 68 46;
+    --accent: 250 190 88;
+    --accent-dim: 217 119 6;
+    --aurora-1: 180 83 9;
+    --aurora-2: 159 18 57;
+  }
+
+  [data-atmo='clear-night'] {
+    --surface-deep: 5 4 18;
+    --surface-base: 14 12 36;
+    --surface-panel: 27 24 58;
+    --surface-border: 58 51 110;
+    --accent: 167 139 250;
+    --accent-dim: 124 58 237;
+    --aurora-1: 76 29 149;
+    --aurora-2: 30 58 138;
+  }
+
+  [data-atmo='rain'] {
+    /* Deep storm-teal — clearly green-blue, not navy */
+    --surface-deep: 2 14 17;
+    --surface-base: 8 26 31;
+    --surface-panel: 16 42 49;
+    --surface-border: 38 80 90;
+    --accent: 45 212 191;
+    --accent-dim: 13 148 136;
+    --aurora-1: 13 148 136;
+    --aurora-2: 7 89 133;
+  }
+
+  [data-atmo='snow'] {
+    /* Icy blue-white — noticeably lighter, cold and bright */
+    --surface-deep: 15 20 34;
+    --surface-base: 26 34 54;
+    --surface-panel: 44 54 78;
+    --surface-border: 94 108 138;
+    --accent: 199 233 255;
+    --accent-dim: 125 211 252;
+    --aurora-1: 148 163 184;
+    --aurora-2: 56 189 248;
+  }
+
+  [data-atmo='storm'] {
+    --surface-deep: 8 5 18;
+    --surface-base: 18 12 35;
+    --surface-panel: 33 25 59;
+    --surface-border: 72 58 112;
+    --accent: 192 132 252;
+    --accent-dim: 147 51 234;
+    --aurora-1: 88 28 135;
+    --aurora-2: 8 47 73;
+  }
+
+  [data-atmo='cloud'] {
+    /* Pewter grey-day — desaturated, no blue cast */
+    --surface-deep: 13 13 15;
+    --surface-base: 26 26 30;
+    --surface-panel: 44 44 51;
+    --surface-border: 92 92 104;
+    --accent: 186 192 210;
+    --accent-dim: 130 136 154;
+    --aurora-1: 113 113 128;
+    --aurora-2: 64 64 75;
+  }
+
+  [data-atmo='fog'] {
+    /* Murky sage-grey — green undertone */
+    --surface-deep: 10 14 12;
+    --surface-base: 21 28 24;
+    --surface-panel: 37 47 42;
+    --surface-border: 76 94 84;
+    --accent: 167 191 173;
+    --accent-dim: 113 137 121;
+    --aurora-1: 87 107 95;
+    --aurora-2: 55 65 60;
   }
 
   body {
-    font-family: 'DM Sans', system-ui, sans-serif;
-    background: var(--cockpit-deep);
+    font-family: 'Hanken Grotesk', system-ui, sans-serif;
+    background: rgb(var(--surface-deep));
     color: var(--text-primary);
+    transition: background-color 0.8s ease;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 }
 
 @layer components {
-  /* Glass panel effect */
+  /* ── Ambient background: aurora washes + dot grid + film grain ── */
+  .atmosphere {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .atmosphere::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgb(var(--surface-border) / 0.4) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.15) 60%);
+  }
+
+  /* Horizon wash — the dominant "sky color" of the page background */
+  .sky-wash {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 70vh;
+    background: linear-gradient(
+      to bottom,
+      rgb(var(--aurora-1) / 0.34),
+      rgb(var(--aurora-2) / 0.12) 55%,
+      transparent
+    );
+    transition: opacity 0.8s ease;
+  }
+
+  .aurora {
+    position: absolute;
+    width: 64vw;
+    height: 64vw;
+    min-width: 480px;
+    min-height: 480px;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.32;
+    animation: aurora-drift 26s ease-in-out infinite alternate;
+  }
+
+  .aurora-1 {
+    top: -24vw;
+    right: -12vw;
+    background: rgb(var(--aurora-1));
+  }
+
+  .aurora-2 {
+    bottom: -28vw;
+    left: -16vw;
+    background: rgb(var(--aurora-2));
+    animation-duration: 34s;
+    animation-delay: -14s;
+  }
+
+  .noise {
+    position: absolute;
+    inset: 0;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  }
+
+  /* ── Glass panel ───────────────────────────────────────────── */
   .glass-panel {
     background: linear-gradient(
-      135deg,
-      rgba(30, 41, 59, 0.8),
-      rgba(15, 23, 42, 0.9)
+      150deg,
+      rgb(var(--surface-panel) / 0.6),
+      rgb(var(--surface-deep) / 0.85)
     );
-    border: 1px solid var(--cockpit-border);
-    backdrop-filter: blur(12px);
-    border-radius: 12px;
+    border: 1px solid rgb(var(--surface-border) / 0.8);
+    backdrop-filter: blur(14px);
+    border-radius: 14px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 12px 40px -16px rgba(0, 0, 0, 0.5);
   }
 
   .glass-panel-flush {
     background: linear-gradient(
-      135deg,
-      rgba(30, 41, 59, 0.6),
-      rgba(15, 23, 42, 0.7)
+      150deg,
+      rgb(var(--surface-panel) / 0.45),
+      rgb(var(--surface-deep) / 0.6)
     );
-    border: 1px solid rgba(51, 65, 85, 0.5);
+    border: 1px solid rgb(var(--surface-border) / 0.5);
     backdrop-filter: blur(8px);
+  }
+
+  /* ── Hero panel — the big atmospheric moment ──────────────── */
+  .hero-panel {
+    background: linear-gradient(
+      155deg,
+      rgb(var(--surface-panel) / 0.65),
+      rgb(var(--surface-deep) / 0.92)
+    );
+    border: 1px solid rgb(var(--surface-border) / 0.85);
+    border-radius: 22px;
+    backdrop-filter: blur(18px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      0 28px 70px -28px rgba(0, 0, 0, 0.65);
+  }
+
+  .hero-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(85px);
+    pointer-events: none;
+  }
+
+  .hero-glow-a {
+    width: 440px;
+    height: 440px;
+    top: -180px;
+    right: -100px;
+    background: rgb(var(--aurora-1));
+    opacity: 0.4;
+  }
+
+  .hero-glow-b {
+    width: 360px;
+    height: 360px;
+    bottom: -170px;
+    left: -90px;
+    background: rgb(var(--aurora-2));
+    opacity: 0.25;
+  }
+
+  /* Giant serif temperature + gradient display text */
+  .hero-temp {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    background: linear-gradient(168deg, #f8fafc 28%, rgb(var(--accent)) 115%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .hero-gradient-text {
+    background: linear-gradient(120deg, rgb(var(--accent)), #f8fafc 140%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
   }
 
   /* Cockpit data readout */
@@ -96,8 +299,8 @@
     z-index: 1;
   }
 
-  /* Neon text glow */
-  .glow-cyan { text-shadow: 0 0 8px rgba(34, 211, 238, 0.5); }
+  /* Neon text glow — primary glow follows the atmosphere accent */
+  .glow-cyan { text-shadow: 0 0 12px rgb(var(--accent) / 0.45); }
   .glow-amber { text-shadow: 0 0 8px rgba(251, 191, 36, 0.5); }
   .glow-magenta { text-shadow: 0 0 8px rgba(244, 114, 182, 0.5); }
   .glow-emerald { text-shadow: 0 0 8px rgba(52, 211, 153, 0.5); }
@@ -112,32 +315,40 @@
 
   /* Cockpit button */
   .cockpit-btn {
-    background: linear-gradient(180deg, rgba(51, 65, 85, 0.6), rgba(30, 41, 59, 0.8));
-    border: 1px solid var(--cockpit-border);
+    background: linear-gradient(
+      180deg,
+      rgb(var(--surface-panel) / 0.55),
+      rgb(var(--surface-deep) / 0.75)
+    );
+    border: 1px solid rgb(var(--surface-border) / 0.8);
     color: var(--text-secondary);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     transition: all 0.2s ease;
   }
 
   .cockpit-btn:hover {
-    background: linear-gradient(180deg, rgba(51, 65, 85, 0.9), rgba(30, 41, 59, 1));
+    background: linear-gradient(
+      180deg,
+      rgb(var(--surface-panel) / 0.9),
+      rgb(var(--surface-base) / 1)
+    );
     color: var(--text-primary);
-    border-color: var(--ch-cyan);
-    box-shadow: var(--glow-cyan);
+    border-color: rgb(var(--accent) / 0.7);
+    box-shadow: 0 0 24px rgb(var(--accent) / 0.18);
+    transform: translateY(-1px);
   }
 
   .cockpit-btn-active {
-    background: linear-gradient(180deg, rgba(6, 182, 212, 0.2), rgba(6, 182, 212, 0.05));
-    border-color: var(--ch-cyan);
-    color: var(--ch-cyan);
-    box-shadow: var(--glow-cyan);
+    background: linear-gradient(180deg, rgb(var(--accent) / 0.18), rgb(var(--accent) / 0.04));
+    border-color: rgb(var(--accent) / 0.8);
+    color: rgb(var(--accent));
+    box-shadow: 0 0 24px rgb(var(--accent) / 0.18);
   }
 
-  /* Grid noise texture */
+  /* Grid noise texture (legacy — ambient layer now handled by .atmosphere) */
   .grid-texture {
-    background-image:
-      linear-gradient(rgba(51, 65, 85, 0.15) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(51, 65, 85, 0.15) 1px, transparent 1px);
-    background-size: 24px 24px;
+    background-image: radial-gradient(rgb(var(--surface-border) / 0.35) 1px, transparent 1px);
+    background-size: 28px 28px;
   }
 }
 
@@ -147,7 +358,7 @@
   }
 
   .font-display {
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: 'Hanken Grotesk', system-ui, sans-serif;
   }
 
   /* Horizontal scroll container with edge-fade affordance so users
@@ -165,8 +376,8 @@
     pointer-events: none;
     background: linear-gradient(
       to right,
-      rgba(2, 6, 23, 0),
-      rgba(2, 6, 23, 0.85)
+      rgb(var(--surface-deep) / 0),
+      rgb(var(--surface-deep) / 0.85)
     );
     border-top-right-radius: inherit;
     border-bottom-right-radius: inherit;
@@ -181,7 +392,7 @@
   .skeleton {
     position: relative;
     overflow: hidden;
-    background: rgba(30, 41, 59, 0.5);
+    background: rgb(var(--surface-panel) / 0.5);
     border-radius: 8px;
   }
   .skeleton::after {
@@ -214,6 +425,11 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes aurora-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-7vw, 5vw, 0) scale(1.18); }
+}
+
 @keyframes gauge-fill {
   from { stroke-dashoffset: var(--gauge-circumference); }
   to { stroke-dashoffset: var(--gauge-offset); }
@@ -233,16 +449,23 @@
 .animate-fade-in-up-3 { animation: fade-in-up 0.5s ease-out 0.3s both; }
 .animate-fade-in-up-4 { animation: fade-in-up 0.5s ease-out 0.4s both; }
 
+/* Respect reduced-motion preferences for ambient animation */
+@media (prefers-reduced-motion: reduce) {
+  .aurora {
+    animation: none;
+  }
+}
+
 /* Custom scrollbar for dark theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--cockpit-base);
+  background: rgb(var(--surface-base));
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--cockpit-border);
+  background: rgb(var(--surface-border));
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {

@@ -1,6 +1,6 @@
 import React, { useState, useRef, lazy, Suspense } from 'react';
 import WeatherDashboard from './WeatherDashboard';
-import { LayoutDashboard, LineChart, Gauge, CloudRain, AlertTriangle, Radar, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
 const DetailedForecast = lazy(() => import('./DetailedForecast'));
 const WeatherConditionsWidget = lazy(() => import('./WeatherConditionsWidget'));
@@ -8,11 +8,11 @@ const PrecipitationRadar = lazy(() => import('./PrecipitationRadar'));
 const USRadar = lazy(() => import('./USRadar'));
 
 const VIEWS = [
-  { id: 'dashboard', label: 'Dashboard', shortLabel: 'DASH', icon: LayoutDashboard },
-  { id: 'forecast', label: 'Forecast', shortLabel: 'FCST', icon: LineChart },
-  { id: 'conditions', label: 'Conditions', shortLabel: 'COND', icon: Gauge },
-  { id: 'precipitation', label: 'Precipitation', shortLabel: 'PRCP', icon: CloudRain },
-  { id: 'radar', label: 'U.S. Radar', shortLabel: 'RADR', icon: Radar },
+  { id: 'dashboard', label: 'Dashboard', shortLabel: 'DASH' },
+  { id: 'forecast', label: 'Forecast', shortLabel: 'FCST' },
+  { id: 'conditions', label: 'Conditions', shortLabel: 'COND' },
+  { id: 'precipitation', label: 'Precipitation', shortLabel: 'PRCP' },
+  { id: 'radar', label: 'U.S. Radar', shortLabel: 'RADR' },
 ];
 
 const SEVERE_SEVERITIES = new Set(['Extreme', 'Severe']);
@@ -61,15 +61,14 @@ const WeatherAppLayout = ({ weather, tempUnit }) => {
         </button>
       )}
 
-      {/* Instrument-panel tab bar */}
+      {/* Editorial tab rail */}
       <div
         role="tablist"
         aria-label="Weather views"
         aria-orientation="horizontal"
-        className="flex items-center gap-1 mb-6 p-1 glass-panel-flush rounded-xl overflow-x-auto"
+        className="flex items-end mb-6 border-b border-cockpit-border/80 overflow-x-auto"
       >
         {VIEWS.map((view, index) => {
-          const Icon = view.icon;
           const isActive = activeView === view.id;
           const showBadge = view.id === 'conditions' && alerts.length > 0;
           return (
@@ -83,19 +82,26 @@ const WeatherAppLayout = ({ weather, tempUnit }) => {
               tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveView(view.id)}
               onKeyDown={(e) => handleTabKeyDown(e, index)}
-              className={`relative flex-1 min-w-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-mono text-xs font-medium uppercase tracking-wider transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ch-cyan focus-visible:ring-offset-1 focus-visible:ring-offset-cockpit-deep ${
+              className={`relative flex items-center gap-2 px-3 sm:px-5 py-3 -mb-px border-b-2 font-mono text-[11px] font-medium uppercase tracking-[0.18em] whitespace-nowrap transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ch-cyan focus-visible:ring-offset-1 focus-visible:ring-offset-cockpit-deep ${
                 isActive
-                  ? 'cockpit-btn-active'
-                  : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                  ? 'border-ch-cyan text-ch-cyan'
+                  : 'border-transparent text-slate-500 hover:text-slate-300'
               }`}
             >
-              <Icon size={14} className={isActive ? 'text-ch-cyan' : ''} aria-hidden="true" />
+              <span
+                className={`font-serif italic text-sm normal-case tracking-normal ${
+                  isActive ? 'text-ch-cyan' : 'text-slate-600'
+                }`}
+                aria-hidden="true"
+              >
+                {String(index + 1).padStart(2, '0')}
+              </span>
               <span className="hidden sm:inline">{view.label}</span>
               <span className="sm:hidden">{view.shortLabel}</span>
               {showBadge && (
                 <>
                   <span
-                    className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-ch-red shadow-[0_0_6px_rgba(239,68,68,0.8)]"
+                    className="w-1.5 h-1.5 rounded-full bg-ch-red shadow-[0_0_6px_rgba(239,68,68,0.8)]"
                     aria-hidden="true"
                   />
                   <span className="sr-only">({alerts.length} active alert{alerts.length > 1 ? 's' : ''})</span>

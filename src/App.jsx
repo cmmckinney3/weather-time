@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import WeatherAppLayout from "./components/WeatherAppLayout";
 import { MapPin, Search, Compass, Zap, Droplets, Wind, X, Clock, Radio, Star } from "lucide-react";
-import { getWeatherRecommendation, getWeatherIcon } from "./utils/weatherUtils";
+import { getWeatherRecommendation, getWeatherIcon, getAtmosphere } from "./utils/weatherUtils";
 import { fetchForecastWeather, searchLocations } from "./services/weatherApi";
 
 const WEATHER_QUOTES = {
@@ -35,6 +35,19 @@ const WEATHER_QUOTES = {
 function randomQuote(category) {
   const quotes = WEATHER_QUOTES[category] ?? WEATHER_QUOTES.default;
   return quotes[Math.floor(Math.random() * quotes.length)];
+}
+
+// WeatherAPI localtime arrives as "YYYY-MM-DD HH:mm"
+function formatLocalTime(localtime) {
+  if (!localtime) return null;
+  const parsed = new Date(localtime.replace(" ", "T"));
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleString("en-US", {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 function App() {
@@ -266,22 +279,45 @@ function App() {
       ? getWeatherRecommendation(weather.current, weather.forecast.forecastday[0])
       : null;
 
+  const todayDay = weather?.forecast?.forecastday?.[0]?.day;
+  const atmosphere = weather
+    ? getAtmosphere(weather.current.condition, weather.current.is_day === 1)
+    : "default";
+  const localTime = formatLocalTime(weather?.location?.localtime);
+
+  // Theme <html> too so the body background (outside the React root)
+  // follows the atmosphere as well.
+  useEffect(() => {
+    document.documentElement.dataset.atmo = atmosphere;
+  }, [atmosphere]);
+
   return (
-    <div className="min-h-screen bg-cockpit-deep grid-texture relative">
+    <div
+      className="min-h-screen bg-cockpit-deep relative transition-colors duration-700"
+      data-atmo={atmosphere}
+    >
+      {/* Ambient atmosphere — sky wash, aurora, dot grid, film grain */}
+      <div className="atmosphere" aria-hidden="true">
+        <div className="sky-wash" />
+        <div className="aurora aurora-1" />
+        <div className="aurora aurora-2" />
+        <div className="noise" />
+      </div>
+
       {/* Top bar */}
-      <header className="border-b border-cockpit-border bg-cockpit-base/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-cockpit-border/70 bg-cockpit-deep/70 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-ch-cyan to-ch-cyan-dim flex items-center justify-center shadow-glow-cyan">
-              <Zap size={16} className="text-cockpit-deep" />
+            <div className="w-9 h-9 rounded-full border border-ch-cyan/40 bg-ch-cyan/10 flex items-center justify-center shadow-glow-cyan">
+              <Zap size={14} className="text-ch-cyan" />
             </div>
-            <h1 className="text-lg font-semibold font-display text-slate-100 tracking-tight">
-              Weather My Way
+            <h1 className="font-serif italic text-xl text-slate-100 tracking-tight">
+              Weather, <span className="text-ch-cyan">My Way</span>
             </h1>
             {weather && (
               <div className="hidden md:flex items-center gap-2 ml-4 pl-4 border-l border-cockpit-border">
                 <div className="live-dot bg-ch-emerald" />
-                <span className="text-xs text-slate-400 font-mono">LIVE</span>
+                <span className="text-[10px] text-slate-400 font-mono tracking-[0.2em]">LIVE</span>
               </div>
             )}
           </div>
@@ -324,14 +360,26 @@ function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        {/* Search section */}
-        <div className="max-w-2xl mx-auto mb-8 animate-fade-in-up relative z-20">
-          {!weather && (
-            <p className="text-center text-slate-400 italic mb-4 text-sm font-display">
+      <main className="max-w-7xl mx-auto px-4 py-6 relative z-10">
+        {/* Landing headline (no weather loaded) */}
+        {!weather && !loading && (
+          <div className="text-center mt-8 sm:mt-16 mb-10 animate-fade-in-up">
+            <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-ch-cyan mb-6">
+              Weather, My Way
+            </p>
+            <h2 className="font-serif text-5xl sm:text-7xl leading-[1.02] text-slate-100">
+              The sky,
+              <br />
+              <span className="italic hero-gradient-text">on your terms.</span>
+            </h2>
+            <p className="mt-6 text-base text-slate-400 font-serif italic max-w-md mx-auto">
               "{quote}"
             </p>
-          )}
+          </div>
+        )}
+
+        {/* Search section */}
+        <div className="max-w-2xl mx-auto mb-8 animate-fade-in-up relative z-20">
 
           <div className="relative">
             <label htmlFor="city-search" className="sr-only">
@@ -350,13 +398,13 @@ function App() {
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
               autoComplete="off"
-              className="w-full pl-10 pr-28 py-3 rounded-xl bg-cockpit-panel border border-cockpit-border text-slate-100 placeholder-slate-500 font-mono text-sm focus:outline-none focus:border-ch-cyan focus:shadow-glow-cyan transition-all"
+              className="w-full pl-10 pr-28 py-3.5 rounded-2xl bg-cockpit-panel/70 backdrop-blur-md border border-cockpit-border text-slate-100 placeholder-slate-500 font-mono text-sm focus:outline-none focus:border-ch-cyan focus:shadow-glow-cyan transition-all"
             />
             <button
               onClick={getWeather}
               disabled={loading}
               aria-label="Search weather"
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-ch-cyan-dim to-ch-cyan text-cockpit-deep font-semibold text-sm py-2 px-4 rounded-lg flex items-center gap-1.5 hover:shadow-glow-cyan disabled:opacity-40 transition-all"
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-ch-cyan-dim to-ch-cyan text-cockpit-deep font-semibold text-sm py-2 px-4 rounded-xl flex items-center gap-1.5 hover:shadow-glow-cyan disabled:opacity-40 transition-all"
             >
               {loading ? (
                 <span className="inline-block h-4 w-4 rounded-full border-2 border-cockpit-deep border-t-transparent animate-spin" />
@@ -617,86 +665,125 @@ function App() {
         {/* Weather data display */}
         {weather && (
           <div className="animate-fade-in-up">
-            {/* Station header */}
-            <div className="max-w-7xl mx-auto mb-6">
-              <div className="glass-panel p-5 scanlines relative overflow-hidden">
-                <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-xl bg-cockpit-deep/60 border border-cockpit-border">
-                      {getWeatherIcon(weather.current.condition, 48)}
+            {/* Atmospheric hero */}
+            <section className="max-w-7xl mx-auto mb-8">
+              <div className="hero-panel relative overflow-hidden">
+                <div className="hero-glow hero-glow-a" aria-hidden="true" />
+                <div className="hero-glow hero-glow-b" aria-hidden="true" />
+
+                <div className="relative z-10 p-6 sm:p-10">
+                  {/* Eyebrow */}
+                  <div className="flex items-center justify-between gap-4 mb-7">
+                    <div className="flex items-center gap-2.5 text-[10px] font-mono uppercase tracking-[0.3em] text-slate-500">
+                      <span className="live-dot bg-ch-emerald" aria-hidden="true" />
+                      Current conditions
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h2 className="text-xl font-semibold text-slate-100 font-display">
+                    {localTime && (
+                      <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-slate-500">
+                        Local · {localTime}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
+                    {/* Location + condition */}
+                    <div className="min-w-0">
+                      <div className="flex items-start gap-3">
+                        <h2 className="font-serif text-5xl sm:text-6xl text-slate-100 leading-[0.95] tracking-tight">
                           {weather.location.name}
                         </h2>
-                        <span className="text-xs text-slate-500 font-mono">
-                          {weather.location.region && `${weather.location.region}, `}{weather.location.country}
-                        </span>
                         <button
                           onClick={() => toggleFavorite(weather.location.name)}
                           aria-label={isFavorite(weather.location.name) ? "Remove from favorites" : "Add to favorites"}
-                          className="ml-1 transition-colors hover:scale-110 active:scale-95"
+                          className="mt-2 transition-transform hover:scale-110 active:scale-95"
                         >
                           <Star
-                            size={16}
+                            size={20}
                             className={isFavorite(weather.location.name) ? "text-ch-amber" : "text-slate-600 hover:text-slate-400"}
                             fill={isFavorite(weather.location.name) ? "currentColor" : "none"}
                           />
                         </button>
                       </div>
-                      <p className="text-sm text-slate-400">{weather.current.condition.text}</p>
+                      <p className="mt-3 text-[11px] font-mono uppercase tracking-[0.25em] text-slate-500">
+                        {weather.location.region && `${weather.location.region} · `}{weather.location.country}
+                      </p>
+                      <div className="mt-6 flex items-center gap-3">
+                        {getWeatherIcon(weather.current.condition, 26)}
+                        <p className="font-serif italic text-2xl text-ch-cyan">
+                          {weather.current.condition.text}
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-6">
                     {/* Primary readout */}
-                    <div className="text-right">
-                      <p className="text-4xl font-bold font-mono text-ch-cyan glow-cyan tracking-tight leading-none">
+                    <div className="flex items-end gap-5 flex-shrink-0">
+                      <p className="hero-temp text-[clamp(6rem,14vw,10rem)] leading-[0.8] tracking-tight">
                         {tempUnit === "F"
-                          ? `${Math.round(weather.current.temp_f)}°`
-                          : `${Math.round(weather.current.temp_c)}°`}
+                          ? Math.round(weather.current.temp_f)
+                          : Math.round(weather.current.temp_c)}°
                       </p>
-                      <p className="text-[10px] text-slate-500 font-mono mt-2 flex items-center gap-1 justify-end">
-                        <span className="uppercase tracking-widest text-slate-600">Feels like</span>
-                        <span className="text-slate-400 font-medium">
-                          {tempUnit === "F"
-                            ? `${Math.round(weather.current.feelslike_f)}°`
-                            : `${Math.round(weather.current.feelslike_c)}°`}
-                        </span>
-                      </p>
-                    </div>
-
-                    {/* Quick stats */}
-                    <div className="hidden sm:flex flex-col gap-2 pl-6 border-l border-cockpit-border">
-                      <div className="flex items-center gap-2">
-                        <Wind size={12} className="text-ch-amber" />
-                        <span className="text-sm font-mono text-slate-300">{weather.current.wind_mph} mph</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Droplets size={12} className="text-ch-magenta" />
-                        <span className="text-sm font-mono text-slate-300">{weather.current.humidity}%</span>
+                      <div className="pb-2 flex flex-col gap-2 font-mono text-xs">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-[9px] uppercase tracking-[0.2em] text-slate-600">Feels</span>
+                          <span className="text-slate-300">
+                            {tempUnit === "F"
+                              ? `${Math.round(weather.current.feelslike_f)}°`
+                              : `${Math.round(weather.current.feelslike_c)}°`}
+                          </span>
+                        </div>
+                        {todayDay && (
+                          <>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-[9px] uppercase tracking-[0.2em] text-slate-600">High</span>
+                              <span className="text-ch-amber">
+                                {tempUnit === "F" ? `${Math.round(todayDay.maxtemp_f)}°` : `${Math.round(todayDay.maxtemp_c)}°`}
+                              </span>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-[9px] uppercase tracking-[0.2em] text-slate-600">Low</span>
+                              <span className="text-ch-cyan">
+                                {tempUnit === "F" ? `${Math.round(todayDay.mintemp_f)}°` : `${Math.round(todayDay.mintemp_c)}°`}
+                              </span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
+
+                  {/* Stats rail */}
+                  <div className="mt-9 pt-5 border-t border-cockpit-border/60 flex flex-wrap items-center gap-x-8 gap-y-3">
+                    {[
+                      { icon: Wind, label: "Wind", value: `${weather.current.wind_mph} mph ${weather.current.wind_dir}`, color: "text-ch-amber" },
+                      { icon: Droplets, label: "Humidity", value: `${weather.current.humidity}%`, color: "text-ch-magenta" },
+                      { icon: Zap, label: "UV", value: `${weather.current.uv}`, color: "text-ch-cyan" },
+                      { icon: Compass, label: "Pressure", value: `${weather.current.pressure_mb} mb`, color: "text-slate-300" },
+                    ].map((stat) => (
+                      <div key={stat.label} className="flex items-center gap-2.5">
+                        <stat.icon size={13} className={stat.color} aria-hidden="true" />
+                        <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-slate-600">{stat.label}</span>
+                        <span className="text-xs font-mono text-slate-300">{stat.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Recommendation */}
+                  {recommendation && (
+                    <p className="mt-5 font-serif italic text-lg text-slate-300/90">
+                      {recommendation.text}
+                    </p>
+                  )}
                 </div>
-
-                {/* Recommendation bar */}
-                {recommendation && (
-                  <div className="mt-4 pt-4 border-t border-cockpit-border flex items-center gap-3">
-                    <div className="opacity-70">{recommendation.icon}</div>
-                    <p className="text-sm text-slate-400 italic font-display">{recommendation.text}</p>
-                  </div>
-                )}
               </div>
-            </div>
+            </section>
 
             <WeatherAppLayout weather={weather} tempUnit={tempUnit} />
           </div>
         )}
 
         {/* Footer */}
-        <footer className="max-w-7xl mx-auto mt-12 pt-4 border-t border-cockpit-border text-center">
+        <footer className="max-w-7xl mx-auto mt-16 pt-5 border-t border-cockpit-border/60 text-center">
+          <p className="font-serif italic text-sm text-slate-500 mb-1.5">Whatever the sky brings.</p>
           <p className="text-xs text-slate-600 font-mono">
             Powered by{" "}
             <a

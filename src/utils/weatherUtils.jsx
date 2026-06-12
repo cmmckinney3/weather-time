@@ -24,6 +24,30 @@ export const getWeatherIcon = (condition, size = 36) => {
 };
 
 /**
+ * Resolve the visual "atmosphere" theme key for the current conditions.
+ * Drives the data-atmo attribute on the app root, which re-tints the
+ * entire palette (surfaces, accent, aurora) via CSS variables.
+ * @param {Object} condition - Weather condition object from API
+ * @param {boolean} isDay - Whether it is currently daytime at the location
+ * @returns {string} - Atmosphere key (e.g. 'clear-day', 'rain', 'storm')
+ */
+export const getAtmosphere = (condition, isDay) => {
+  const text = condition?.text?.toLowerCase() ?? '';
+  if (text.includes('thunder') || text.includes('storm')) return 'storm';
+  if (
+    text.includes('snow') || text.includes('blizzard') ||
+    text.includes('sleet') || text.includes('ice')
+  ) return 'snow';
+  if (text.includes('rain') || text.includes('drizzle') || text.includes('shower')) return 'rain';
+  if (text.includes('fog') || text.includes('mist') || text.includes('haze')) return 'fog';
+  // "Partly cloudy" still reads as a sunny sky — only fully grey skies get the cloud theme
+  if (text.includes('partly')) return isDay ? 'clear-day' : 'clear-night';
+  if (text.includes('cloud') || text.includes('overcast')) return 'cloud';
+  if (text.includes('sun') || text.includes('clear')) return isDay ? 'clear-day' : 'clear-night';
+  return isDay ? 'clear-day' : 'clear-night';
+};
+
+/**
  * Format time string to AM/PM format
  * @param {string} dateTimeStr - DateTime string from API
  * @returns {string} - Formatted time string (e.g., "2 PM")

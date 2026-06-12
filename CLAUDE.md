@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-- **Start development server**: `npm run dev` (opens at http://localhost:5173)
+- **Start development server**: `npm start` (opens at http://localhost:5173)
 - **Build for production**: `npm run build` (outputs to `dist/` folder)
 - **Preview production build**: `npm run preview`
 
@@ -32,10 +32,13 @@ This is a React weather application built with Vite, using the WeatherAPI.com se
 
 ### Styling and UI
 
-- **Tailwind CSS**: Primary styling framework with custom theme (cockpit/instrument-panel aesthetic)
+- **Tailwind CSS**: Primary styling framework with custom theme ("atmospheric observatory" aesthetic)
 - **Lucide React**: Icon library for weather icons and UI elements
 - **Responsive design**: Mobile-first approach with responsive grids and layouts
-- **Theme**: Dark navy (`cockpit-deep`, `cockpit-base`, `cockpit-panel`), cyan/amber/magenta accents, JetBrains Mono font, glassmorphism panels
+- **Weather-reactive theming**: `getAtmosphere(condition, isDay)` in `weatherUtils.jsx` maps live conditions to a theme key (`clear-day`, `clear-night`, `rain`, `snow`, `storm`, `cloud`, `fog`) set as `data-atmo` on the app root. CSS variables in `index.css` (RGB triplets: `--surface-*`, `--accent`, `--aurora-*`) re-tint surfaces, the primary accent (`ch-cyan` token), glows, and the ambient aurora background per atmosphere. Tailwind tokens in `tailwind.config.js` read these vars via `rgb(var(...) / <alpha-value>)` so opacity modifiers keep working
+- **Typography**: Instrument Serif (italic display — hero temp, headlines, wordmark), Hanken Grotesk (`font-display` body sans), JetBrains Mono (data readouts/labels)
+- **Ambient layers**: `.atmosphere` fixed background (aurora washes + dot grid + SVG film grain), `.hero-panel`/`.glass-panel` glassmorphism with inner highlights
+- **Charts/SVG follow the accent**: Recharts lines and the WindCompass use `currentColor` under a `text-ch-cyan` parent so they track the active atmosphere
 
 ### Weather Data Integration
 

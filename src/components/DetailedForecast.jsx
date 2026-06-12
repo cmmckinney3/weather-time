@@ -126,7 +126,8 @@ const DetailedForecast = ({ weather, tempUnit = "F" }) => {
           <CalendarDays size={14} className="text-ch-cyan" />
           <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest font-mono">Temperature Trend</h3>
         </div>
-        <div className="h-64">
+        {/* text-ch-cyan supplies currentColor so the chart line tracks the atmosphere accent */}
+        <div className="h-64 text-ch-cyan">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(51, 65, 85, 0.4)" />
@@ -149,19 +150,19 @@ const DetailedForecast = ({ weather, tempUnit = "F" }) => {
               {selectedDay === 0 && (
                 <ReferenceLine
                   x={new Date().toLocaleString('en-US', { hour: 'numeric', hour12: true })}
-                  stroke="#22d3ee"
+                  stroke="currentColor"
                   strokeDasharray="3 3"
                   strokeOpacity={0.7}
-                  label={{ value: 'NOW', position: 'insideTopRight', fill: '#22d3ee', fontSize: 9, fontFamily: 'JetBrains Mono' }}
+                  label={{ value: 'NOW', position: 'insideTopRight', fill: 'currentColor', fontSize: 9, fontFamily: 'JetBrains Mono' }}
                 />
               )}
               <Line
                 type="monotone"
                 dataKey="Temperature"
-                stroke="#22d3ee"
+                stroke="currentColor"
                 strokeWidth={2}
-                dot={{ r: 3, fill: '#22d3ee', stroke: '#22d3ee' }}
-                activeDot={{ r: 5, fill: '#22d3ee', stroke: '#0f172a', strokeWidth: 2 }}
+                dot={{ r: 3, fill: 'currentColor', stroke: 'currentColor' }}
+                activeDot={{ r: 5, fill: 'currentColor', stroke: '#0f172a', strokeWidth: 2 }}
               />
               <Line
                 type="monotone"

@@ -28,6 +28,7 @@ const WindCompass = ({ windDegree = 0, windDir = 'N' }) => (
       height={SIZE}
       role="img"
       aria-labelledby="wind-compass-caption"
+      className="text-ch-cyan"
     >
       <defs>
         {/* Compass face — dark radial gradient */}
@@ -68,11 +69,11 @@ const WindCompass = ({ windDegree = 0, windDir = 'N' }) => (
       </defs>
 
       {/* Outer glow rings */}
-      <circle cx={CX} cy={CY} r={OUTER_R + 7} fill="none" stroke="#06b6d4" strokeWidth="0.5" opacity="0.12" />
-      <circle cx={CX} cy={CY} r={OUTER_R + 3} fill="none" stroke="#06b6d4" strokeWidth="0.5" opacity="0.25" />
+      <circle cx={CX} cy={CY} r={OUTER_R + 7} fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.12" />
+      <circle cx={CX} cy={CY} r={OUTER_R + 3} fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
 
       {/* Compass face */}
-      <circle cx={CX} cy={CY} r={OUTER_R} fill="url(#wc-face)" stroke="#06b6d4" strokeWidth="1.5" />
+      <circle cx={CX} cy={CY} r={OUTER_R} fill="url(#wc-face)" stroke="currentColor" strokeWidth="1.5" />
 
       {/* Inner decorative ring */}
       <circle cx={CX} cy={CY} r={INNER_RING_R} fill="none" stroke="#1e3a5f" strokeWidth="0.75" opacity="0.55" />
@@ -97,14 +98,14 @@ const WindCompass = ({ windDegree = 0, windDir = 'N' }) => (
           <g key={angle}>
             <line
               x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke={isCardinal ? '#06b6d4' : isIntercardinal ? '#2d4a6b' : '#1e293b'}
+              stroke={isCardinal ? 'currentColor' : isIntercardinal ? '#2d4a6b' : '#1e293b'}
               strokeWidth={isCardinal ? 1.5 : 1}
             />
             {label && (
               <text
                 x={lx} y={ly}
                 textAnchor="middle" dominantBaseline="central"
-                fill={isNorth ? '#ef4444' : '#06b6d4'}
+                fill={isNorth ? '#ef4444' : 'currentColor'}
                 fontSize={isNorth ? '11' : '9'}
                 fontWeight="700"
                 fontFamily="'JetBrains Mono', monospace"
@@ -151,8 +152,8 @@ const WindCompass = ({ windDegree = 0, windDir = 'N' }) => (
       </g>
 
       {/* Center pivot — two layers */}
-      <circle cx={CX} cy={CY} r={6}  fill="#0a0f1e" stroke="#06b6d4" strokeWidth="1.5" filter="url(#wc-cyan-glow)" />
-      <circle cx={CX} cy={CY} r={2.5} fill="#06b6d4" />
+      <circle cx={CX} cy={CY} r={6}  fill="#0a0f1e" stroke="currentColor" strokeWidth="1.5" filter="url(#wc-cyan-glow)" />
+      <circle cx={CX} cy={CY} r={2.5} fill="currentColor" />
     </svg>
 
     <figcaption
