@@ -27,12 +27,11 @@ const PrecipitationRadar = ({ weather }) => {
 
   const { forecast } = weather;
 
-  // FIX: Use shared filterHourlyData instead of duplicating the logic
   const getPrecipitationData = (dayIndex) => {
     const day = forecast.forecastday[dayIndex];
     if (!day) return [];
 
-    const filteredHours = filterHourlyData(day.hour, dayIndex);
+    const filteredHours = filterHourlyData(day.hour, dayIndex, weather.location?.localtime);
 
     return filteredHours.map(hour => ({
       time: formatTime(hour.time),
@@ -56,9 +55,11 @@ const PrecipitationRadar = ({ weather }) => {
       return {
         day: dayName,
         totalPrecip: day.day.totalprecip_in,
+        totalSnow: day.day.totalsnow_cm,
         chanceOfRain: day.day.daily_chance_of_rain,
         willItRain: day.day.daily_will_it_rain,
         chanceOfSnow: day.day.daily_chance_of_snow,
+        willItSnow: day.day.daily_will_it_snow,
         condition: day.day.condition.text
       };
     });
@@ -137,16 +138,16 @@ const PrecipitationRadar = ({ weather }) => {
                 {selectedDay === 0 ? "Today's" : selectedDay === 1 ? "Tomorrow's" : "Day's"} Summary
               </p>
               <p className="text-xs text-slate-500 font-mono mt-0.5">
-                {selectedDayData.day.daily_chance_of_rain}% chance &bull; {selectedDayData.day.totalprecip_in}" expected
+                Rain {selectedDayData.day.daily_chance_of_rain}% · {selectedDayData.day.totalprecip_in}" · Snow {selectedDayData.day.daily_chance_of_snow}% · {selectedDayData.day.totalsnow_cm} cm
               </p>
             </div>
           </div>
           <span className={`text-xs font-mono font-bold px-3 py-1 rounded-md ${
-            selectedDayData.day.daily_will_it_rain
+            selectedDayData.day.daily_will_it_rain || selectedDayData.day.daily_will_it_snow
               ? 'bg-ch-magenta/15 text-ch-magenta border border-ch-magenta/30'
               : 'bg-cockpit-panel text-slate-400 border border-cockpit-border'
           }`}>
-            {selectedDayData.day.daily_will_it_rain ? 'RAIN EXPECTED' : 'NO RAIN'}
+            {selectedDayData.day.daily_will_it_snow ? 'SNOW EXPECTED' : selectedDayData.day.daily_will_it_rain ? 'RAIN EXPECTED' : 'NO PRECIP'}
           </span>
         </div>
       )}
@@ -255,12 +256,15 @@ const PrecipitationRadar = ({ weather }) => {
                         {day.totalPrecip > 0.1 && (
                           <span className="text-sm font-mono font-bold text-ch-cyan">{day.totalPrecip}"</span>
                         )}
+                        {day.totalSnow > 0 && (
+                          <span className="text-sm font-mono font-bold text-blue-300">{day.totalSnow} cm</span>
+                        )}
                         <span className={`text-[10px] font-mono font-bold px-2 py-1 rounded border ${
-                          day.willItRain
+                          day.willItRain || day.willItSnow
                             ? 'bg-ch-magenta/15 text-ch-magenta border-ch-magenta/30'
                             : 'bg-cockpit-panel text-slate-500 border-cockpit-border'
                         }`}>
-                          {day.willItRain ? 'EXPECTED' : 'CLEAR'}
+                          {day.willItSnow ? 'SNOW' : day.willItRain ? 'RAIN' : 'CLEAR'}
                         </span>
                       </div>
                     </div>

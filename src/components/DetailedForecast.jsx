@@ -42,7 +42,7 @@ const DetailedForecast = ({ weather, tempUnit = "F" }) => {
   const dayData = relevantDays[selectedDay];
   const precipSummary = getPrecipitationSummary(dayData);
 
-  const filteredHours = filterHourlyData(dayData.hour, selectedDay);
+  const filteredHours = filterHourlyData(dayData.hour, selectedDay, weather.location?.localtime);
 
   const formattedHourlyData = filteredHours.map(hour => ({
     time: formatTime(hour.time),
@@ -62,6 +62,8 @@ const DetailedForecast = ({ weather, tempUnit = "F" }) => {
     visibility: hour.vis_miles,
     pressure: hour.pressure_mb,
     dewPoint: tempUnit === "F" ? hour.dewpoint_f : hour.dewpoint_c,
+    heatIndex: tempUnit === "F" ? hour.heatindex_f : hour.heatindex_c,
+    windChill: tempUnit === "F" ? hour.windchill_f : hour.windchill_c,
     icon: hour.condition.icon
   }));
 
@@ -182,10 +184,10 @@ const DetailedForecast = ({ weather, tempUnit = "F" }) => {
       <div className="glass-panel p-5">
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest font-mono mb-3">Hourly Data</h3>
         <div className="scroll-fade-x overflow-x-auto rounded-lg border border-cockpit-border">
-          <table className="min-w-[1180px] w-full">
+          <table className="min-w-[1320px] w-full">
             <thead>
               <tr className="bg-cockpit-deep/60">
-                {['Time', 'Condition', 'Temp', 'Feels', 'Dew', 'Precip', 'Snow', 'Wind', 'Gust', 'Cloud', 'UV', 'Vis', 'Pressure', 'Humid'].map(h => (
+                {['Time', 'Condition', 'Temp', 'Feels', 'Heat', 'Chill', 'Dew', 'Precip', 'Snow', 'Wind', 'Gust', 'Cloud', 'UV', 'Vis', 'Pressure', 'Humid'].map(h => (
                   <th key={h} className="px-3 py-2.5 text-left text-[10px] font-mono text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -200,6 +202,8 @@ const DetailedForecast = ({ weather, tempUnit = "F" }) => {
                   </td>
                   <td className="px-3 py-2.5 text-xs font-mono text-ch-cyan font-semibold whitespace-nowrap">{displayNumber(hour.temp)}°{tempUnit}</td>
                   <td className="px-3 py-2.5 text-xs font-mono text-slate-400 whitespace-nowrap">{displayNumber(hour.feelsLike)}°{tempUnit}</td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-ch-amber whitespace-nowrap">{displayNumber(hour.heatIndex)}°{tempUnit}</td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-slate-400 whitespace-nowrap">{displayNumber(hour.windChill)}°{tempUnit}</td>
                   <td className="px-3 py-2.5 text-xs font-mono text-slate-400 whitespace-nowrap">{displayNumber(hour.dewPoint)}°{tempUnit}</td>
                   <td className="px-3 py-2.5 text-xs font-mono whitespace-nowrap">
                     <span className={hour.chanceOfRain >= 40 ? 'text-ch-magenta font-semibold' : 'text-slate-500'}>

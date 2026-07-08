@@ -1,15 +1,16 @@
 # Weather My Way
 
-Weather My Way is a Vite + React weather dashboard styled with Tailwind CSS. It uses [WeatherAPI.com](https://www.weatherapi.com/) to search locations and display current conditions, forecast details, and weather-related guidance.
+Weather My Way is a Vite + React weather dashboard styled with Tailwind CSS. It uses [WeatherAPI.com](https://www.weatherapi.com/) to search locations and display current conditions, forecast details, weather maps, and weather-related guidance.
 
 ## Features
 
-- Search by city, ZIP code, or coordinates with WeatherAPI.com autocomplete.
-- Use browser geolocation to load weather for the current location.
-- Current conditions with temperature unit toggle (°F/°C), condition icon, and practical recommendation.
-- 3-day forecast with expandable hourly breakdowns, precipitation, wind, humidity, UV, visibility, and astronomy details.
+- Search by city, ZIP code, coordinates, IATA code, or METAR code with WeatherAPI.com autocomplete.
+- Use browser geolocation or WeatherAPI's IP lookup to load weather for the current location.
+- Current conditions with temperature unit toggle (deg F/deg C), condition icon, comfort metrics, and practical recommendation.
+- 3-day forecast with expandable hourly breakdowns, precipitation, snow, wind, humidity, UV, visibility, heat index, wind chill, and astronomy details.
+- WeatherAPI map overlays for precipitation, temperature, wind, and pressure, plus NOAA/NWS U.S. radar and alert polygons.
 - Favorites and recent searches saved in `localStorage`.
-- Radar/map-oriented components and responsive Tailwind UI.
+- Air quality pollutant details, WeatherAPI alerts, and responsive Tailwind UI.
 
 ## Tech stack
 
@@ -17,7 +18,7 @@ Weather My Way is a Vite + React weather dashboard styled with Tailwind CSS. It 
 - React 19
 - Tailwind CSS 3
 - Vitest + Testing Library
-- WeatherAPI.com Forecast and Search APIs
+- WeatherAPI.com Forecast, Search, IP Lookup, and Weather Maps APIs
 - Supporting libraries: Lucide React, Recharts, Leaflet/React Leaflet, zipcodes
 
 ## Setup
@@ -53,18 +54,18 @@ Weather My Way is a Vite + React weather dashboard styled with Tailwind CSS. It 
 
 ```text
 weather-time/
-├── public/                 # Static assets copied into the build
-├── src/
-│   ├── components/         # Weather dashboard, radar, forecast, and UI components
-│   ├── components/shared/  # Shared display helpers
-│   ├── services/           # WeatherAPI.com client helpers
-│   ├── utils/              # Weather formatting and recommendation helpers
-│   ├── App.jsx             # Main app state, search, favorites, layout
-│   ├── index.css           # Tailwind and custom styles
-│   └── index.jsx           # React entry point
-├── vite.config.js          # Vite and Vitest configuration
-├── tailwind.config.js      # Tailwind theme/configuration
-└── package.json            # Dependencies and npm scripts
+|-- public/                 # Static assets copied into the build
+|-- src/
+|   |-- components/         # Weather dashboard, radar, forecast, maps, and UI components
+|   |-- components/shared/  # Shared display helpers
+|   |-- services/           # WeatherAPI.com client helpers
+|   |-- utils/              # Weather formatting and recommendation helpers
+|   |-- App.jsx             # Main app state, search, favorites, layout
+|   |-- index.css           # Tailwind and custom styles
+|   `-- index.jsx           # React entry point
+|-- vite.config.js          # Vite and Vitest configuration
+|-- tailwind.config.js      # Tailwind theme/configuration
+`-- package.json            # Dependencies and npm scripts
 ```
 
 ## API key and security notes

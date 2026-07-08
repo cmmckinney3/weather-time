@@ -99,10 +99,16 @@ export const getShortDayName = (index, dateStr) => {
  * @param {number} dayIndex - Day index (0 = today)
  * @returns {Array} - Filtered hourly data
  */
-export const filterHourlyData = (hourlyData, dayIndex) => {
+export const filterHourlyData = (hourlyData, dayIndex, localtime) => {
   if (dayIndex !== 0) return hourlyData;
-  
-  const currentHour = new Date().getHours();
+
+  const localNow = localtime
+    ? new Date(localtime.replace(' ', 'T'))
+    : new Date();
+  const currentHour = Number.isNaN(localNow.getTime())
+    ? new Date().getHours()
+    : localNow.getHours();
+
   return hourlyData.filter(hour => new Date(hour.time).getHours() >= currentHour);
 };
 

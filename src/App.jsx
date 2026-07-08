@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import WeatherAppLayout from "./components/WeatherAppLayout";
-import { MapPin, Search, Compass, Zap, Droplets, Wind, X, Clock, Radio, Star } from "lucide-react";
+import { MapPin, Search, Compass, Zap, Droplets, Wind, X, Clock, Radio, Star, Globe2, Gauge, Eye } from "lucide-react";
 import { getWeatherRecommendation, getWeatherIcon, getAtmosphere } from "./utils/weatherUtils";
 import { fetchForecastWeather, searchLocations } from "./services/weatherApi";
 
@@ -37,6 +37,27 @@ function randomQuote(category) {
   return quotes[Math.floor(Math.random() * quotes.length)];
 }
 
+function readStoredArray(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(value) ? value : [];
+  } catch {
+    localStorage.removeItem(key);
+    return [];
+  }
+}
+
+function formatLocationLabel(location) {
+  if (!location?.name) return "";
+  const parts = [location.name, location.region, location.country].filter(Boolean);
+  return [...new Set(parts)].join(", ");
+}
+
+function formatTempValue(value, unit) {
+  if (value === undefined || value === null || Number.isNaN(Number(value))) return "—";
+  return `${Math.round(Number(value))}°${unit}`;
+}
+
 // WeatherAPI localtime arrives as "YYYY-MM-DD HH:mm"
 function formatLocalTime(localtime) {
   if (!localtime) return null;
@@ -58,7 +79,7 @@ function App() {
   const [quote, setQuote] = useState(() => randomQuote("default"));
   const [tempUnit, setTempUnit] = useState("F");
   const [recentSearches, setRecentSearches] = useState(
-    () => JSON.parse(localStorage.getItem("weather_recent") || "[]")
+    () => readStoredArray("weather_recent")
   );
   const [showRecents, setShowRecents] = useState(false);
   const blurTimerRef = useRef(null);
@@ -68,7 +89,7 @@ function App() {
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [autocompleteSearched, setAutocompleteSearched] = useState(false);
   const [favorites, setFavorites] = useState(
-    () => JSON.parse(localStorage.getItem("weather_favorites") || "[]")
+    () => readStoredArray("weather_favorites")
   );
   const [favoriteWeather, setFavoriteWeather] = useState({});
   // Map of cityName → { temp_f, temp_c, condition }
@@ -129,17 +150,22 @@ function App() {
     }
   }, [weather]);
 
-  const fetchWeather = async (query) => {
+  const fetchWeather = async (query, preferredLabel) => {
     setLoading(true);
     setError(null);
     setShowRecents(false);
     try {
       const data = await fetchForecastWeather(query);
       setWeather(data);
-      lastQueryRef.current = query;
-      localStorage.setItem("weather_last_city", query);
+      const locationLabel = preferredLabel || formatLocationLabel(data.location) || query;
+      setCity(locationLabel);
+      lastQueryRef.current = locationLabel;
+      localStorage.setItem("weather_last_city", locationLabel);
       setRecentSearches((prev) => {
-        const next = [query, ...prev.filter((c) => c.toLowerCase() !== query.toLowerCase())].slice(0, 5);
+        const next = [
+          locationLabel,
+          ...prev.filter((c) => c.toLowerCase() !== locationLabel.toLowerCase()),
+        ].slice(0, 5);
         localStorage.setItem("weather_recent", JSON.stringify(next));
         return next;
       });
@@ -156,7 +182,7 @@ function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("weather_favorites") || "[]");
+    const saved = readStoredArray("weather_favorites");
     saved.forEach(fetchFavoriteWeather);
   }, [fetchFavoriteWeather]);
 
@@ -198,6 +224,10 @@ function App() {
     );
   };
 
+  const getIpLocation = () => {
+    fetchWeather("auto:ip");
+  };
+
   const handleCityInputChange = (e) => {
     const value = e.target.value;
     setCity(value);
@@ -222,10 +252,11 @@ function App() {
   };
 
   const handleAutocompleteSelect = (result) => {
-    setCity(result.name);
+    const label = formatLocationLabel(result);
+    setCity(label);
     setShowAutocomplete(false);
     setAutocompleteResults([]);
-    fetchWeather(result.name);
+    fetchWeather(result.id ? `id:${result.id}` : label, label);
   };
 
   const getWeather = () => {
@@ -280,6 +311,32 @@ function App() {
       : null;
 
   const todayDay = weather?.forecast?.forecastday?.[0]?.day;
+  const todayAstro = weather?.forecast?.forecastday?.[0]?.astro;
+  const tempField = tempUnit === "F" ? "f" : "c";
+  const comfortMetrics = weather?.current
+    ? [
+        {
+          label: "Feels",
+          value: formatTempValue(weather.current[`feelslike_${tempField}`], tempUnit),
+          tone: "text-ch-cyan",
+        },
+        {
+          label: "Heat",
+          value: formatTempValue(weather.current[`heatindex_${tempField}`], tempUnit),
+          tone: "text-ch-amber",
+        },
+        {
+          label: "Chill",
+          value: formatTempValue(weather.current[`windchill_${tempField}`], tempUnit),
+          tone: "text-slate-300",
+        },
+        {
+          label: "Dew",
+          value: formatTempValue(weather.current[`dewpoint_${tempField}`], tempUnit),
+          tone: "text-teal-300",
+        },
+      ]
+    : [];
   const atmosphere = weather
     ? getAtmosphere(weather.current.condition, weather.current.is_day === 1)
     : "default";
@@ -356,6 +413,15 @@ function App() {
               <Compass size={14} />
               <span className="hidden sm:inline">Locate</span>
             </button>
+            <button
+              onClick={getIpLocation}
+              disabled={loading}
+              aria-label="Use IP-based location"
+              className="cockpit-btn px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm disabled:opacity-40"
+            >
+              <Globe2 size={14} />
+              <span className="hidden sm:inline">IP</span>
+            </button>
           </div>
         </div>
       </header>
@@ -391,7 +457,7 @@ function App() {
             <input
               id="city-search"
               type="text"
-              placeholder="Enter city, zip code, or coordinates"
+              placeholder="City, zip, coordinates, IATA, or METAR"
               value={city}
               onChange={handleCityInputChange}
               onKeyDown={handleKeyDown}
@@ -706,6 +772,7 @@ function App() {
                       </div>
                       <p className="mt-3 text-[11px] font-mono uppercase tracking-[0.25em] text-slate-500">
                         {weather.location.region && `${weather.location.region} · `}{weather.location.country}
+                        {weather.location.tz_id && ` · ${weather.location.tz_id}`}
                       </p>
                       <div className="mt-6 flex items-center gap-3">
                         {getWeatherIcon(weather.current.condition, 26)}
@@ -758,6 +825,8 @@ function App() {
                       { icon: Droplets, label: "Humidity", value: `${weather.current.humidity}%`, color: "text-ch-magenta" },
                       { icon: Zap, label: "UV", value: `${weather.current.uv}`, color: "text-ch-cyan" },
                       { icon: Compass, label: "Pressure", value: `${weather.current.pressure_mb} mb`, color: "text-slate-300" },
+                      { icon: Eye, label: "Visibility", value: `${weather.current.vis_miles} mi`, color: "text-slate-300" },
+                      { icon: Gauge, label: "Cloud", value: `${weather.current.cloud}%`, color: "text-slate-400" },
                     ].map((stat) => (
                       <div key={stat.label} className="flex items-center gap-2.5">
                         <stat.icon size={13} className={stat.color} aria-hidden="true" />
@@ -766,6 +835,29 @@ function App() {
                       </div>
                     ))}
                   </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {comfortMetrics.map((metric) => (
+                      <div key={metric.label} className="rounded-lg border border-cockpit-border/60 bg-cockpit-deep/30 px-3 py-2">
+                        <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-slate-600">{metric.label}</p>
+                        <p className={`mt-1 text-sm font-mono font-semibold ${metric.tone}`}>{metric.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {todayAstro && (
+                    <div className="mt-4 flex flex-wrap gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                      <span className="rounded-md border border-cockpit-border/60 bg-cockpit-deep/30 px-2.5 py-1">
+                        Sun {todayAstro.is_sun_up ? "up" : "down"}
+                      </span>
+                      <span className="rounded-md border border-cockpit-border/60 bg-cockpit-deep/30 px-2.5 py-1">
+                        Moon {todayAstro.is_moon_up ? "up" : "down"}
+                      </span>
+                      <span className="rounded-md border border-cockpit-border/60 bg-cockpit-deep/30 px-2.5 py-1">
+                        {Number(weather.location.lat).toFixed(2)}, {Number(weather.location.lon).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Recommendation */}
                   {recommendation && (

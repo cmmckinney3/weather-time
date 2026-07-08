@@ -95,7 +95,7 @@ const WeatherDashboard = ({ weather, tempUnit = "F" }) => {
   const getHourlyData = (dayIndex) => {
     const day = forecast.forecastday[dayIndex];
     if (!day) return [];
-    const filteredHours = filterHourlyData(day.hour, dayIndex);
+    const filteredHours = filterHourlyData(day.hour, dayIndex, weather.location?.localtime);
     return filteredHours.map(hour => ({
       time: formatTime(hour.time),
       temp: tempUnit === "F" ? hour.temp_f : hour.temp_c,

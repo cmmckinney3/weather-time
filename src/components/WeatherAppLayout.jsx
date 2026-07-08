@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 const DetailedForecast = lazy(() => import('./DetailedForecast'));
 const WeatherConditionsWidget = lazy(() => import('./WeatherConditionsWidget'));
 const PrecipitationRadar = lazy(() => import('./PrecipitationRadar'));
+const WeatherMaps = lazy(() => import('./WeatherMaps'));
 const USRadar = lazy(() => import('./USRadar'));
 
 const VIEWS = [
@@ -12,6 +13,7 @@ const VIEWS = [
   { id: 'forecast', label: 'Forecast', shortLabel: 'FCST' },
   { id: 'conditions', label: 'Conditions', shortLabel: 'COND' },
   { id: 'precipitation', label: 'Precipitation', shortLabel: 'PRCP' },
+  { id: 'maps', label: 'Maps', shortLabel: 'MAPS' },
   { id: 'radar', label: 'U.S. Radar', shortLabel: 'RADR' },
 ];
 
@@ -57,7 +59,7 @@ const WeatherAppLayout = ({ weather, tempUnit }) => {
             </p>
             <p className="text-xs text-slate-300 truncate">{severeAlert.headline}</p>
           </div>
-          <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">VIEW &rarr;</span>
+          <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">VIEW {'>'}</span>
         </button>
       )}
 
@@ -132,6 +134,7 @@ const WeatherAppLayout = ({ weather, tempUnit }) => {
           {activeView === 'forecast' && <DetailedForecast weather={weather} tempUnit={tempUnit} />}
           {activeView === 'conditions' && <WeatherConditionsWidget weather={weather} tempUnit={tempUnit} />}
           {activeView === 'precipitation' && <PrecipitationRadar weather={weather} />}
+          {activeView === 'maps' && <WeatherMaps weather={weather} />}
           {activeView === 'radar' && <USRadar weather={weather} />}
         </Suspense>
       </div>

@@ -250,6 +250,21 @@ const WeatherConditionsWidget = ({ weather, tempUnit = "F" }) => {
             valueColor: 'text-teal-400'
           },
           {
+            icon: Thermometer, iconColor: 'text-ch-amber', label: 'Heat Index',
+            value: tempUnit === "F" ? `${current.heatindex_f}°F` : `${current.heatindex_c}°C`,
+            valueColor: 'text-ch-amber'
+          },
+          {
+            icon: Thermometer, iconColor: 'text-slate-300', label: 'Wind Chill',
+            value: tempUnit === "F" ? `${current.windchill_f}°F` : `${current.windchill_c}°C`,
+            valueColor: 'text-slate-300'
+          },
+          {
+            icon: Cloud, iconColor: 'text-slate-400', label: 'Precip Now',
+            value: `${current.precip_in} in`,
+            valueColor: current.precip_in > 0 ? 'text-ch-magenta' : 'text-slate-400'
+          },
+          {
             icon: ArrowUp, iconColor: 'text-ch-red', label: 'High',
             value: tempUnit === "F" ? `${today.day.maxtemp_f}°F` : `${today.day.maxtemp_c}°C`,
             valueColor: 'text-ch-red'
@@ -287,6 +302,21 @@ const WeatherConditionsWidget = ({ weather, tempUnit = "F" }) => {
             <div>
               <p className="text-[10px] text-slate-500 font-mono uppercase">Sunset</p>
               <p className="text-sm font-mono font-semibold text-orange-400">{today.astro.sunset}</p>
+            </div>
+          </div>
+          <div className="hidden lg:block w-px h-8 bg-cockpit-border" />
+          <div className="hidden lg:flex items-center gap-2">
+            <Sunrise size={18} className={today.astro.is_sun_up ? 'text-ch-amber' : 'text-slate-500'} />
+            <div>
+              <p className="text-[10px] text-slate-500 font-mono uppercase">Sun</p>
+              <p className="text-sm font-mono font-semibold text-slate-300">{today.astro.is_sun_up ? 'Up' : 'Down'}</p>
+            </div>
+          </div>
+          <div className="hidden lg:flex items-center gap-2">
+            <Moon size={18} className={today.astro.is_moon_up ? 'text-indigo-300' : 'text-slate-500'} />
+            <div>
+              <p className="text-[10px] text-slate-500 font-mono uppercase">Moon</p>
+              <p className="text-sm font-mono font-semibold text-slate-300">{today.astro.is_moon_up ? 'Up' : 'Down'}</p>
             </div>
           </div>
         </div>
