@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Wind, Droplets, Thermometer, Eye, Compass, ArrowUp, ArrowDown,
-  AlertTriangle, Umbrella, Cloud, ChevronDown, X, Sunrise, Sunset,
+  AlertTriangle, Umbrella, Cloud, ChevronDown, X, Sunrise, Sunset, Moon,
   Gauge as GaugeIcon, Activity, Zap
 } from 'lucide-react';
 import { getWeatherIcon, getPrecipitationSummary, getPrecipitationIntensity } from '../utils/weatherUtils';
