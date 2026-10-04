@@ -599,15 +599,19 @@
     rgb(var(--surface-deep) / 0.8)
   );
   backdrop-filter: blur(12px);
-  padding: 18px;
+  padding: 20px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 14px 34px -20px rgba(0, 0, 0, 0.6);
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
 .tile:hover {
-  transform: translateY(-2px);
   border-color: rgb(var(--accent) / 0.45);
+}
+/* Gentle lift only on small interactive tiles (bento), not on
+   large containers like the day rows or the map frame. */
+.tile-lift:hover {
+  transform: translateY(-2px);
 }
 
 .tile-label {
@@ -619,7 +623,7 @@
   font-weight: 600;
 }
 
-/* Section eyebrow heading */
+/* Section eyebrow heading — single source for label spacing */
 .section-label {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
@@ -627,6 +631,7 @@
   text-transform: uppercase;
   color: var(--text-secondary);
   font-weight: 600;
+  margin: 0 0 1rem;
 }
 
 /* 3-day range bar fill — follows the atmosphere accent */

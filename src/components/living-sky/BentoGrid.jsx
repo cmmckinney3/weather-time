@@ -24,7 +24,7 @@ const SEVERITY_STYLES = {
 
 function Tile({ icon: Icon, label, accent = "text-ch-cyan", className = "", children }) {
   return (
-    <div className={`tile ${className}`}>
+    <div className={`tile tile-lift ${className}`}>
       <div className="flex items-center gap-2 mb-3">
         <Icon size={14} className={accent} aria-hidden="true" />
         <span className="tile-label">{label}</span>
@@ -262,8 +262,8 @@ export default function BentoGrid({ weather, tempUnit }) {
 
   return (
     <section aria-label="Weather details" className="animate-fade-in-up-3">
-      <h3 className="section-label mb-3 px-1">Details</h3>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <h3 className="section-label px-1">Details</h3>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <AlertsTile alerts={alerts} />
         <WindTile current={current} tempUnit={tempUnit} />
         <PrecipTile dayData={today} tempUnit={tempUnit} />

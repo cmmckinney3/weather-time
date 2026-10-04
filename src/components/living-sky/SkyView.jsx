@@ -43,7 +43,7 @@ export default function SkyView({ weather }) {
         </div>
       </div>
 
-      <div className="tile !p-3 sm:!p-4">
+      <div className="tile !p-4 sm:!p-5">
         <Suspense
           fallback={
             <div className="flex items-center justify-center py-24 text-slate-500" role="status">

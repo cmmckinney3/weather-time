@@ -42,7 +42,7 @@ export default function DayRows({ weather, tempUnit }) {
 
   return (
     <section aria-label="3-day forecast" className="animate-fade-in-up-2">
-      <h3 className="section-label mb-3 px-1">3-day outlook</h3>
+      <h3 className="section-label px-1">3-day outlook</h3>
       <div className="tile !p-0 overflow-hidden divide-y divide-cockpit-border/50">
         {days.map((fd, i) => {
           const day = fd.day;
@@ -58,7 +58,7 @@ export default function DayRows({ weather, tempUnit }) {
               <button
                 onClick={() => setOpen(isOpen ? -1 : i)}
                 aria-expanded={isOpen}
-                className="w-full flex items-center gap-3 sm:gap-5 px-4 py-3.5 text-left hover:bg-white/[0.03] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ch-cyan/60"
+                className="w-full flex items-center gap-3 sm:gap-5 px-4 sm:px-5 py-4 text-left hover:bg-white/[0.03] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ch-cyan/60"
               >
                 <span className="w-20 sm:w-28 flex-shrink-0 text-sm font-display font-medium text-slate-200">
                   {getDayName(i, fd.date)}
@@ -75,7 +75,7 @@ export default function DayRows({ weather, tempUnit }) {
                 </span>
                 <span className="flex-1 flex items-center gap-2 min-w-0">
                   <span className="text-sm font-mono text-slate-400 w-8 text-right">{low}°</span>
-                  <span className="relative flex-1 h-1.5 rounded-full bg-cockpit-deep/80 overflow-hidden" aria-hidden="true">
+                  <span className="relative flex-1 h-2 rounded-full bg-cockpit-deep/80 overflow-hidden" aria-hidden="true">
                     <span
                       className="absolute inset-y-0 rounded-full day-range-bar"
                       style={{

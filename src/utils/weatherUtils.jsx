@@ -76,22 +76,6 @@ export const getDayName = (index, dateStr) => {
   });
 };
 
-/**
- * Get short day name for tabs
- * @param {number} index - Day index
- * @param {string} dateStr - Date string from API
- * @returns {string} - Short day name
- */
-export const getShortDayName = (index, dateStr) => {
-  if (index === 0) return 'Today';
-  if (index === 1) return 'Tomorrow';
-  // Append T12:00:00 to parse as local noon, avoiding UTC-offset date shift
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  });
-};
 
 /**
  * Filter hourly data to show only current hour onward for today
@@ -112,42 +96,7 @@ export const filterHourlyData = (hourlyData, dayIndex, localtime) => {
   return hourlyData.filter(hour => new Date(hour.time).getHours() >= currentHour);
 };
 
-/**
- * Get precipitation summary for a day
- * @param {Object} dayData - Day forecast data from API
- * @returns {Object} - Precipitation summary
- */
-export const getPrecipitationSummary = (dayData) => {
-  return {
-    chanceOfRain: dayData.day.daily_chance_of_rain,
-    willItRain: dayData.day.daily_will_it_rain,
-    totalPrecip: dayData.day.totalprecip_in,
-    chanceOfSnow: dayData.day.daily_chance_of_snow,
-    willItSnow: dayData.day.daily_will_it_snow,
-    maxChanceToday: Math.max(...dayData.hour.map(h => h.chance_of_rain))
-  };
-};
 
-/**
- * Get precipitation intensity level
- * @param {number} chanceOfRain - Percentage chance of rain
- * @returns {Object} - Intensity info with color and label
- */
-export const getPrecipitationIntensity = (chanceOfRain) => {
-  if (chanceOfRain >= 80) {
-    return { level: 'very-high', color: 'text-blue-700', bg: 'bg-blue-100', label: 'Very High' };
-  }
-  if (chanceOfRain >= 60) {
-    return { level: 'high', color: 'text-blue-600', bg: 'bg-blue-50', label: 'High' };
-  }
-  if (chanceOfRain >= 30) {
-    return { level: 'moderate', color: 'text-blue-500', bg: 'bg-blue-50', label: 'Moderate' };
-  }
-  if (chanceOfRain > 0) {
-    return { level: 'low', color: 'text-blue-400', bg: 'bg-gray-50', label: 'Low' };
-  }
-  return { level: 'none', color: 'text-gray-400', bg: 'bg-gray-50', label: 'None' };
-};
 
 /**
  * Get weather recommendation based on conditions

@@ -23,7 +23,7 @@ export default function LivingSkyLayout({
   const hours24 = getNext24Hours(weather);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10">
+    <div className="max-w-7xl mx-auto space-y-10 sm:space-y-12">
       {severeAlert && (
         <div
           role="alert"

@@ -6,7 +6,7 @@ function HourCard({ hour, tempUnit, isNow }) {
   const precip = Math.max(Number(hour.chance_of_rain ?? 0), Number(hour.chance_of_snow ?? 0));
   return (
     <div
-      className={`hour-card snap-start flex-shrink-0 w-[76px] rounded-2xl border px-2 py-3 flex flex-col items-center gap-1.5 transition-colors ${
+      className={`hour-card snap-start flex-shrink-0 w-[84px] rounded-2xl border px-2 py-3.5 flex flex-col items-center gap-1.5 transition-colors ${
         isNow
           ? "border-ch-cyan/60 bg-ch-cyan/10 shadow-glow-cyan"
           : "border-cockpit-border/70 bg-cockpit-panel/40"
@@ -37,7 +37,7 @@ export default function HourlyStrip({ hours, tempUnit }) {
         </span>
       </div>
       <div className="scroll-fade-x -mx-1 px-1">
-        <div className="flex gap-2 overflow-x-auto pb-2 snap-x">
+        <div className="flex gap-2.5 overflow-x-auto pb-2 snap-x">
           {hours.map((hour, i) => (
             <HourCard key={hour.time ?? i} hour={hour} tempUnit={tempUnit} isNow={i === 0} />
           ))}

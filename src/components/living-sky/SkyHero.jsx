@@ -65,7 +65,7 @@ export default function SkyHero({ weather, tempUnit, atmosphere, toggleFavorite,
       {showRain && <div className="sky-rain" aria-hidden="true" />}
       <div className="noise" aria-hidden="true" />
 
-      <div className="relative z-10 p-6 sm:p-10 lg:p-12 min-h-[68vh] flex flex-col">
+      <div className="relative z-10 p-6 sm:p-8 lg:p-10 min-h-[60vh] flex flex-col">
         {/* Eyebrow */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5 text-[10px] font-mono uppercase tracking-[0.3em] text-white/70">
@@ -110,7 +110,7 @@ export default function SkyHero({ weather, tempUnit, atmosphere, toggleFavorite,
             </p>
           </div>
           <div className="flex items-end gap-5">
-            <p className="sky-temp text-[clamp(6.5rem,15vw,11rem)] leading-[0.8] tracking-tight">
+            <p className="sky-temp text-[clamp(5.5rem,13vw,9.5rem)] leading-[0.8] tracking-tight">
               {t(current.temp_f, current.temp_c)}°
             </p>
             <div className="pb-3 flex flex-col gap-1.5 font-mono text-xs text-white/85">
@@ -135,7 +135,7 @@ export default function SkyHero({ weather, tempUnit, atmosphere, toggleFavorite,
         </div>
 
         {/* Slim stats strip */}
-        <div className="mt-8 pt-5 border-t border-white/20 flex flex-wrap items-center gap-x-8 gap-y-3">
+        <div className="mt-8 pt-5 border-t border-white/20 flex flex-wrap items-center gap-x-6 sm:gap-x-8 gap-y-3">
           {STATS.map((s) => (
             <div key={s.label} className="flex items-center gap-2.5">
               <s.icon size={14} className="text-white/75" aria-hidden="true" />
