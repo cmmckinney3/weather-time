@@ -471,3 +471,182 @@
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+
+/* ── Living Sky: reactive sky gradients ──────────────────────────
+ * Each atmosphere tints the hero sky (top/mid/horizon) plus the sun/moon
+ * orb. Unlayered rules win over the @layer base atmosphere blocks. */
+:root,
+[data-atmo='default'] {
+  --sky-top: #1c2f52;
+  --sky-mid: #3d5a86;
+  --sky-low: #8a6f5c;
+  --orb: #ffd66e;
+  --orb-opacity: 0.9;
+}
+[data-atmo='clear-day'] {
+  --sky-top: #1b5b9e; --sky-mid: #6ba7da; --sky-low: #f2c078;
+  --orb: #ffd66e; --orb-opacity: 1;
+}
+[data-atmo='clear-night'] {
+  --sky-top: #03050d; --sky-mid: #0d1633; --sky-low: #2b2456;
+  --orb: #efeaff; --orb-opacity: 0.95;
+}
+[data-atmo='rain'] {
+  --sky-top: #061214; --sky-mid: #0e3038; --sky-low: #1d505a;
+  --orb: #2dd4bf; --orb-opacity: 0.35;
+}
+[data-atmo='snow'] {
+  --sky-top: #2c3a59; --sky-mid: #6e83a8; --sky-low: #d6e5f5;
+  --orb: #ffffff; --orb-opacity: 0.95;
+}
+[data-atmo='storm'] {
+  --sky-top: #090614; --sky-mid: #1c123d; --sky-low: #392861;
+  --orb: #c084fc; --orb-opacity: 0.4;
+}
+[data-atmo='cloud'] {
+  --sky-top: #1a1a1d; --sky-mid: #323237; --sky-low: #5c5c65;
+  --orb: #cfd2dc; --orb-opacity: 0.5;
+}
+[data-atmo='fog'] {
+  --sky-top: #0e1310; --sky-mid: #212a24; --sky-low: #3a473f;
+  --orb: #b9cdc0; --orb-opacity: 0.45;
+}
+
+.sky-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid rgb(var(--surface-border) / 0.55);
+  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 52%, var(--sky-low) 108%);
+  box-shadow:
+    0 30px 80px -30px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: background 1s ease;
+}
+
+/* Legibility scrims over the sky gradient */
+.sky-hero::before,
+.sky-hero::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.sky-hero::before {
+  top: 0;
+  height: 26%;
+  background: linear-gradient(to bottom, rgba(3, 6, 14, 0.42), transparent);
+}
+.sky-hero::after {
+  bottom: 0;
+  height: 48%;
+  background: linear-gradient(to top, rgba(3, 6, 14, 0.5), transparent);
+}
+
+.sky-orb {
+  position: absolute;
+  top: 9%;
+  right: 7%;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--orb) 0%, transparent 66%);
+  opacity: var(--orb-opacity);
+  filter: blur(4px);
+  pointer-events: none;
+  animation: orb-float 16s ease-in-out infinite alternate;
+}
+
+.sky-star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  animation: twinkle 3.2s ease-in-out infinite;
+}
+
+.sky-rain {
+  position: absolute;
+  inset: -80px 0 0 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.32;
+  background-image: repeating-linear-gradient(
+    105deg,
+    transparent 0 16px,
+    rgba(190, 210, 235, 0.55) 16px 17px,
+    transparent 17px 38px
+  );
+  animation: rainfall 1s linear infinite;
+}
+
+/* Giant sky temperature — solid white for legibility on any sky */
+.sky-temp {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  color: #fff;
+  text-shadow: 0 4px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Bento detail tile */
+.tile {
+  border-radius: 18px;
+  border: 1px solid rgb(var(--surface-border) / 0.7);
+  background: linear-gradient(
+    160deg,
+    rgb(var(--surface-panel) / 0.55),
+    rgb(var(--surface-deep) / 0.8)
+  );
+  backdrop-filter: blur(12px);
+  padding: 18px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 14px 34px -20px rgba(0, 0, 0, 0.6);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.tile:hover {
+  transform: translateY(-2px);
+  border-color: rgb(var(--accent) / 0.45);
+}
+
+.tile-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+/* Section eyebrow heading */
+.section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* 3-day range bar fill — follows the atmosphere accent */
+.day-range-bar {
+  background: linear-gradient(90deg, rgb(var(--accent-dim)), rgb(var(--accent)));
+}
+
+@keyframes orb-float {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-14px, 20px, 0); }
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
+@keyframes rainfall {
+  from { transform: translate3d(0, -80px, 0); }
+  to { transform: translate3d(-48px, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sky-orb, .sky-star, .sky-rain { animation: none; }
+}

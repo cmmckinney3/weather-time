@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import WeatherAppLayout from "./components/WeatherAppLayout";
-import { MapPin, Search, Compass, Zap, Droplets, Wind, X, Clock, Radio, Star, Globe2, Gauge, Eye } from "lucide-react";
-import { getWeatherRecommendation, getWeatherIcon, getAtmosphere } from "./utils/weatherUtils";
+import LivingSkyLayout from "./components/living-sky/LivingSkyLayout";
+import { MapPin, Search, Compass, Zap, X, Clock, Radio, Star, Globe2 } from "lucide-react";
+import { getWeatherIcon, getAtmosphere } from "./utils/weatherUtils";
 import { fetchForecastWeather, searchLocations } from "./services/weatherApi";
 
 const WEATHER_QUOTES = {
@@ -53,10 +53,6 @@ function formatLocationLabel(location) {
   return [...new Set(parts)].join(", ");
 }
 
-function formatTempValue(value, unit) {
-  if (value === undefined || value === null || Number.isNaN(Number(value))) return "—";
-  return `${Math.round(Number(value))}°${unit}`;
-}
 
 // WeatherAPI localtime arrives as "YYYY-MM-DD HH:mm"
 function formatLocalTime(localtime) {
@@ -305,38 +301,6 @@ function App() {
     });
   };
 
-  const recommendation =
-    weather?.forecast?.forecastday?.[0]
-      ? getWeatherRecommendation(weather.current, weather.forecast.forecastday[0])
-      : null;
-
-  const todayDay = weather?.forecast?.forecastday?.[0]?.day;
-  const todayAstro = weather?.forecast?.forecastday?.[0]?.astro;
-  const tempField = tempUnit === "F" ? "f" : "c";
-  const comfortMetrics = weather?.current
-    ? [
-        {
-          label: "Feels",
-          value: formatTempValue(weather.current[`feelslike_${tempField}`], tempUnit),
-          tone: "text-ch-cyan",
-        },
-        {
-          label: "Heat",
-          value: formatTempValue(weather.current[`heatindex_${tempField}`], tempUnit),
-          tone: "text-ch-amber",
-        },
-        {
-          label: "Chill",
-          value: formatTempValue(weather.current[`windchill_${tempField}`], tempUnit),
-          tone: "text-slate-300",
-        },
-        {
-          label: "Dew",
-          value: formatTempValue(weather.current[`dewpoint_${tempField}`], tempUnit),
-          tone: "text-teal-300",
-        },
-      ]
-    : [];
   const atmosphere = weather
     ? getAtmosphere(weather.current.condition, weather.current.is_day === 1)
     : "default";
@@ -728,149 +692,15 @@ function App() {
           </div>
         )}
 
-        {/* Weather data display */}
+        {/* Weather data display — Living Sky single-scroll experience */}
         {weather && (
-          <div className="animate-fade-in-up">
-            {/* Atmospheric hero */}
-            <section className="max-w-7xl mx-auto mb-8">
-              <div className="hero-panel relative overflow-hidden">
-                <div className="hero-glow hero-glow-a" aria-hidden="true" />
-                <div className="hero-glow hero-glow-b" aria-hidden="true" />
-
-                <div className="relative z-10 p-6 sm:p-10">
-                  {/* Eyebrow */}
-                  <div className="flex items-center justify-between gap-4 mb-7">
-                    <div className="flex items-center gap-2.5 text-[10px] font-mono uppercase tracking-[0.3em] text-slate-500">
-                      <span className="live-dot bg-ch-emerald" aria-hidden="true" />
-                      Current conditions
-                    </div>
-                    {localTime && (
-                      <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-slate-500">
-                        Local · {localTime}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
-                    {/* Location + condition */}
-                    <div className="min-w-0">
-                      <div className="flex items-start gap-3">
-                        <h2 className="font-serif text-5xl sm:text-6xl text-slate-100 leading-[0.95] tracking-tight">
-                          {weather.location.name}
-                        </h2>
-                        <button
-                          onClick={() => toggleFavorite(weather.location.name)}
-                          aria-label={isFavorite(weather.location.name) ? "Remove from favorites" : "Add to favorites"}
-                          className="mt-2 transition-transform hover:scale-110 active:scale-95"
-                        >
-                          <Star
-                            size={20}
-                            className={isFavorite(weather.location.name) ? "text-ch-amber" : "text-slate-600 hover:text-slate-400"}
-                            fill={isFavorite(weather.location.name) ? "currentColor" : "none"}
-                          />
-                        </button>
-                      </div>
-                      <p className="mt-3 text-[11px] font-mono uppercase tracking-[0.25em] text-slate-500">
-                        {weather.location.region && `${weather.location.region} · `}{weather.location.country}
-                        {weather.location.tz_id && ` · ${weather.location.tz_id}`}
-                      </p>
-                      <div className="mt-6 flex items-center gap-3">
-                        {getWeatherIcon(weather.current.condition, 26)}
-                        <p className="font-serif italic text-2xl text-ch-cyan">
-                          {weather.current.condition.text}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Primary readout */}
-                    <div className="flex items-end gap-5 flex-shrink-0">
-                      <p className="hero-temp text-[clamp(6rem,14vw,10rem)] leading-[0.8] tracking-tight">
-                        {tempUnit === "F"
-                          ? Math.round(weather.current.temp_f)
-                          : Math.round(weather.current.temp_c)}°
-                      </p>
-                      <div className="pb-2 flex flex-col gap-2 font-mono text-xs">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-[9px] uppercase tracking-[0.2em] text-slate-600">Feels</span>
-                          <span className="text-slate-300">
-                            {tempUnit === "F"
-                              ? `${Math.round(weather.current.feelslike_f)}°`
-                              : `${Math.round(weather.current.feelslike_c)}°`}
-                          </span>
-                        </div>
-                        {todayDay && (
-                          <>
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-[9px] uppercase tracking-[0.2em] text-slate-600">High</span>
-                              <span className="text-ch-amber">
-                                {tempUnit === "F" ? `${Math.round(todayDay.maxtemp_f)}°` : `${Math.round(todayDay.maxtemp_c)}°`}
-                              </span>
-                            </div>
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-[9px] uppercase tracking-[0.2em] text-slate-600">Low</span>
-                              <span className="text-ch-cyan">
-                                {tempUnit === "F" ? `${Math.round(todayDay.mintemp_f)}°` : `${Math.round(todayDay.mintemp_c)}°`}
-                              </span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stats rail */}
-                  <div className="mt-9 pt-5 border-t border-cockpit-border/60 flex flex-wrap items-center gap-x-8 gap-y-3">
-                    {[
-                      { icon: Wind, label: "Wind", value: `${weather.current.wind_mph} mph ${weather.current.wind_dir}`, color: "text-ch-amber" },
-                      { icon: Droplets, label: "Humidity", value: `${weather.current.humidity}%`, color: "text-ch-magenta" },
-                      { icon: Zap, label: "UV", value: `${weather.current.uv}`, color: "text-ch-cyan" },
-                      { icon: Compass, label: "Pressure", value: `${weather.current.pressure_mb} mb`, color: "text-slate-300" },
-                      { icon: Eye, label: "Visibility", value: `${weather.current.vis_miles} mi`, color: "text-slate-300" },
-                      { icon: Gauge, label: "Cloud", value: `${weather.current.cloud}%`, color: "text-slate-400" },
-                    ].map((stat) => (
-                      <div key={stat.label} className="flex items-center gap-2.5">
-                        <stat.icon size={13} className={stat.color} aria-hidden="true" />
-                        <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-slate-600">{stat.label}</span>
-                        <span className="text-xs font-mono text-slate-300">{stat.value}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {comfortMetrics.map((metric) => (
-                      <div key={metric.label} className="rounded-lg border border-cockpit-border/60 bg-cockpit-deep/30 px-3 py-2">
-                        <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-slate-600">{metric.label}</p>
-                        <p className={`mt-1 text-sm font-mono font-semibold ${metric.tone}`}>{metric.value}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {todayAstro && (
-                    <div className="mt-4 flex flex-wrap gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-slate-500">
-                      <span className="rounded-md border border-cockpit-border/60 bg-cockpit-deep/30 px-2.5 py-1">
-                        Sun {todayAstro.is_sun_up ? "up" : "down"}
-                      </span>
-                      <span className="rounded-md border border-cockpit-border/60 bg-cockpit-deep/30 px-2.5 py-1">
-                        Moon {todayAstro.is_moon_up ? "up" : "down"}
-                      </span>
-                      <span className="rounded-md border border-cockpit-border/60 bg-cockpit-deep/30 px-2.5 py-1">
-                        {Number(weather.location.lat).toFixed(2)}, {Number(weather.location.lon).toFixed(2)}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Recommendation */}
-                  {recommendation && (
-                    <p className="mt-5 font-serif italic text-lg text-slate-300/90">
-                      {recommendation.text}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            <WeatherAppLayout weather={weather} tempUnit={tempUnit} />
-          </div>
+          <LivingSkyLayout
+            weather={weather}
+            tempUnit={tempUnit}
+            atmosphere={atmosphere}
+            toggleFavorite={toggleFavorite}
+            isFavorite={isFavorite}
+          />
         )}
 
         {/* Footer */}
