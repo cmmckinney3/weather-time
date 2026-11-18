@@ -1,25 +1,22 @@
 # Weather My Way
 
-Weather My Way is a Vite + React weather dashboard styled with Tailwind CSS. It uses [WeatherAPI.com](https://www.weatherapi.com/) to search locations and display current conditions, forecast details, weather maps, and weather-related guidance.
+Weather My Way is a clean, three-page weather app built with React, Vite and Tailwind CSS. It uses [WeatherAPI.com](https://www.weatherapi.com/) (free plan) to show what the weather is doing now, what it will do over the next three days, and the finer details: air quality, UV, wind, humidity, sun and moon.
 
 ## Features
 
-- Search by city, ZIP code, coordinates, IATA code, or METAR code with WeatherAPI.com autocomplete.
-- Use browser geolocation or WeatherAPI's IP lookup to load weather for the current location.
-- Current conditions with temperature unit toggle (deg F/deg C), condition icon, comfort metrics, and practical recommendation.
-- 3-day forecast with expandable hourly breakdowns, precipitation, snow, wind, humidity, UV, visibility, heat index, wind chill, and astronomy details.
-- WeatherAPI map overlays for precipitation, temperature, wind, and pressure, plus NOAA/NWS U.S. radar and alert polygons.
-- Favorites and recent searches saved in `localStorage`.
-- Air quality pollutant details, WeatherAPI alerts, and responsive Tailwind UI.
+- **Now**: current conditions on a sky-tinted card, a plain-language summary of the next 12 hours ("Rain likely around 6 PM. Falling to 31° by 5 AM."), a 24-hour timeline, and quick facts for precipitation, wind, sunrise/sunset and air quality.
+- **Forecast**: an hour-by-hour timeline for the whole 3-day free-plan window (temperature curve, chance of rain or snow, wind), plus a card for each day.
+- **Details**: air quality and pollutants, UV, wind compass, humidity and dew point, feels-like, pressure trend, visibility, precipitation totals, today vs. yesterday, sun and moon.
+- Search by city, ZIP/postcode, coordinates, or airport code with autocomplete; use your current location (falls back to IP lookup).
+- Favorites with live temperatures, recent searches, and °F/°C, all saved in `localStorage`.
+- Weather alerts, automatic light/dark mode, phone-friendly layout with a bottom tab bar, silent refresh every 15 minutes.
 
 ## Tech stack
 
-- Vite 5
-- React 19
-- Tailwind CSS 3
+- React 19, Vite 8, Tailwind CSS 4
 - Vitest + Testing Library
-- WeatherAPI.com Forecast, Search, IP Lookup, and Weather Maps APIs
-- Supporting libraries: Lucide React, Recharts, Leaflet/React Leaflet, zipcodes
+- Lucide icons; charts and gauges are hand-built SVG
+- WeatherAPI.com Forecast, History, Current, and Search APIs (free plan)
 
 ## Setup
 
@@ -29,7 +26,7 @@ Weather My Way is a Vite + React weather dashboard styled with Tailwind CSS. It 
    npm install
    ```
 
-2. Create `.env.local` in the project root with your WeatherAPI.com key:
+2. Create `.env` in the project root with your WeatherAPI.com key (see `.env.example`):
 
    ```env
    VITE_API_KEY=your_weatherapi_key
@@ -48,25 +45,23 @@ Weather My Way is a Vite + React weather dashboard styled with Tailwind CSS. It 
 - `npm start` - run the Vite development server.
 - `npm run build` - create a production build in `dist/`.
 - `npm run preview` - preview the production build locally.
-- `npm test` - run the Vitest test suite.
+- `npm test` - run the Vitest test suite (watch mode); `npx vitest run` for a single run.
 
 ## Project structure
 
 ```text
-weather-time/
-|-- public/                 # Static assets copied into the build
-|-- src/
-|   |-- components/         # Weather dashboard, radar, forecast, maps, and UI components
-|   |-- components/shared/  # Shared display helpers
-|   |-- services/           # WeatherAPI.com client helpers
-|   |-- utils/              # Weather formatting and recommendation helpers
-|   |-- App.jsx             # Main app state, search, favorites, layout
-|   |-- index.css           # Tailwind and custom styles
-|   `-- index.jsx           # React entry point
-|-- vite.config.js          # Vite and Vitest configuration
-|-- tailwind.config.js      # Tailwind theme/configuration
-`-- package.json            # Dependencies and npm scripts
+src/
+|-- App.jsx              # Shell: header, navigation, search, favorites, welcome screen
+|-- pages/               # NowPage, ForecastPage, DetailsPage
+|-- components/          # HourlyChart, LocationSearch, WeatherIcon, Gauges, ui primitives
+|-- hooks/               # useWeather (fetch + refresh), useStoredState (localStorage)
+|-- lib/weather.js       # Data shaping, units, summaries (unit tested)
+|-- lib/router.jsx       # Tiny pathname router
+|-- services/weatherApi.js
+`-- index.css            # Tailwind 4 + design tokens (light/dark)
 ```
+
+See `CLAUDE.md` / `AGENTS.md` for architecture notes and conventions.
 
 ## API key and security notes
 

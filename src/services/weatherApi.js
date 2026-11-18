@@ -13,7 +13,7 @@ export class WeatherApiError extends Error {
 function requireApiKey() {
   if (!WEATHER_API_KEY) {
     throw new WeatherApiError(
-      "Missing WeatherAPI.com key. Add VITE_API_KEY to your .env.local file and restart the dev server."
+      "Missing WeatherAPI.com key. Add VITE_API_KEY to your .env file and restart the dev server."
     );
   }
 }
@@ -68,4 +68,18 @@ export function fetchForecastWeather(query, { days = 3, aqi = true, alerts = tru
 
 export function searchLocations(query, { signal } = {}) {
   return requestWeatherApi("search.json", { q: query }, { signal });
+}
+
+/** Lightweight current conditions, used for favorites. */
+export function fetchCurrentWeather(query, { signal } = {}) {
+  return requestWeatherApi("current.json", { q: query }, { signal });
+}
+
+/**
+ * A past day's observed weather. The free plan covers the last 7 days;
+ * we use it for "warmer/cooler than yesterday" comparisons.
+ * @param {string} date - "YYYY-MM-DD" in the location's local time
+ */
+export function fetchHistoryWeather(query, date, { signal } = {}) {
+  return requestWeatherApi("history.json", { q: query, dt: date }, { signal });
 }

@@ -1,725 +1,370 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import LivingSkyLayout from "./components/living-sky/LivingSkyLayout";
-import { MapPin, Search, Compass, Zap, X, Clock, Radio, Star, Globe2 } from "lucide-react";
-import { getWeatherIcon, getAtmosphere } from "./utils/weatherUtils";
-import { fetchForecastWeather, searchLocations } from "./services/weatherApi";
+import { useCallback, useEffect, useState } from "react";
+import { CloudSun, CalendarRange, LayoutGrid, LocateFixed, Star, X, RotateCw } from "lucide-react";
+import { Link, usePath } from "./lib/router";
+import { useStoredState } from "./hooks/useStoredState";
+import { useWeather } from "./hooks/useWeather";
+import { fetchCurrentWeather } from "./services/weatherApi";
+import { tempValue } from "./lib/weather";
+import LocationSearch from "./components/LocationSearch";
+import WeatherIcon from "./components/WeatherIcon";
+import { UnitToggle } from "./components/ui";
+import NowPage from "./pages/NowPage";
+import ForecastPage from "./pages/ForecastPage";
+import DetailsPage from "./pages/DetailsPage";
 
-const WEATHER_QUOTES = {
-  sunny: [
-    "Wherever you go, no matter what the weather, always bring your own sunshine.",
-    "A sunny day is a reminder that light always follows darkness.",
-    "Keep your face to the sunshine and you cannot see the shadow.",
-  ],
-  rainy: [
-    "Some people feel the rain. Others just get wet.",
-    "Let the rain kiss you. Let the rain beat upon your head with silver liquid drops.",
-    "The sound of rain needs no translation.",
-  ],
-  cloudy: [
-    "Even the darkest clouds will eventually part for the sun.",
-    "Clouds come floating into my life, no longer to carry rain or usher storm, but to add color to my sunset sky.",
-    "Behind every cloud is another cloud.",
-  ],
-  snowy: [
-    "Snowflakes are one of nature's most fragile things, but just look what they can do when they stick together.",
-    "When snow falls, nature listens.",
-    "The first fall of snow is not only an event, it is a magical event.",
-  ],
-  default: [
-    "Wherever you go, the weather follows you.",
-    "Climate is what we expect, weather is what we get.",
-    "Nature, time and patience are the three great physicians.",
-  ],
-};
+const ROUTES = [
+  { to: "/", label: "Now", icon: CloudSun, Page: NowPage },
+  { to: "/forecast", label: "Forecast", icon: CalendarRange, Page: ForecastPage },
+  { to: "/details", label: "Details", icon: LayoutGrid, Page: DetailsPage },
+];
 
-function randomQuote(category) {
-  const quotes = WEATHER_QUOTES[category] ?? WEATHER_QUOTES.default;
-  return quotes[Math.floor(Math.random() * quotes.length)];
+const POPULAR = ["New York", "London", "Tokyo", "Sydney", "Paris", "Chicago", "Toronto", "Cape Town"];
+const MAX_RECENTS = 5;
+
+/** Saved places are { label, query }; older builds stored plain strings. */
+function toPlace(entry) {
+  if (typeof entry === "string" && entry) return { label: entry, query: entry };
+  if (entry && typeof entry === "object" && entry.label) return { label: entry.label, query: entry.query || entry.label };
+  return null;
 }
+const toPlaces = (list) => (Array.isArray(list) ? list.map(toPlace).filter(Boolean) : []);
+const sameLabel = (a, b) => a?.toLowerCase() === b?.toLowerCase();
 
-function readStoredArray(key) {
-  try {
-    const value = JSON.parse(localStorage.getItem(key) || "[]");
-    return Array.isArray(value) ? value : [];
-  } catch {
-    localStorage.removeItem(key);
-    return [];
-  }
-}
+export default function App() {
+  const path = usePath();
+  const route = ROUTES.find((r) => r.to === path) ?? ROUTES[0];
 
-function formatLocationLabel(location) {
-  if (!location?.name) return "";
-  const parts = [location.name, location.region, location.country].filter(Boolean);
-  return [...new Set(parts)].join(", ");
-}
-
-
-// WeatherAPI localtime arrives as "YYYY-MM-DD HH:mm"
-function formatLocalTime(localtime) {
-  if (!localtime) return null;
-  const parsed = new Date(localtime.replace(" ", "T"));
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toLocaleString("en-US", {
-    weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
-
-function App() {
-  const [city, setCity] = useState(() => localStorage.getItem("weather_last_city") || "");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [weather, setWeather] = useState(null);
-  const [quote, setQuote] = useState(() => randomQuote("default"));
-  const [tempUnit, setTempUnit] = useState("F");
-  const [recentSearches, setRecentSearches] = useState(
-    () => readStoredArray("weather_recent")
-  );
-  const [showRecents, setShowRecents] = useState(false);
-  const blurTimerRef = useRef(null);
-  const autocompleteTimerRef = useRef(null);
-  const lastQueryRef = useRef(null);
-  const [autocompleteResults, setAutocompleteResults] = useState([]);
-  const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const [autocompleteSearched, setAutocompleteSearched] = useState(false);
-  const [favorites, setFavorites] = useState(
-    () => readStoredArray("weather_favorites")
-  );
+  const [unit, setUnit] = useStoredState("weather_unit", "F");
+  const [rawFavorites, setFavorites] = useStoredState("weather_favorites", []);
+  const [rawRecents, setRecents] = useStoredState("weather_recent", []);
+  const [lastPlace, setLastPlace] = useStoredState("weather_last_city", null);
+  const favorites = toPlaces(rawFavorites);
+  const recents = toPlaces(rawRecents);
+  const [place, setPlace] = useState(null);
   const [favoriteWeather, setFavoriteWeather] = useState({});
-  // Map of cityName → { temp_f, temp_c, condition }
+  const [locating, setLocating] = useState(false);
 
-  const fetchFavoriteWeather = useCallback(async (cityName) => {
+  const onLoaded = useCallback(
+    (data, label, query) => {
+      const next = { label, query };
+      setPlace(next);
+      setLastPlace(next);
+      setRecents((prev) => [next, ...toPlaces(prev).filter((p) => !sameLabel(p.label, label))].slice(0, MAX_RECENTS));
+    },
+    [setLastPlace, setRecents]
+  );
+
+  const { weather, yesterday, status, error, load, clearError } = useWeather({ onLoaded });
+
+  // Restore the last location on first visit
+  useEffect(() => {
+    const saved = toPlace(lastPlace);
+    if (saved) load(saved.query, { label: saved.label });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Live temps for favorites (cheap current.json calls)
+  const loadFavoriteWeather = useCallback(async (fav) => {
     try {
-      const data = await fetchForecastWeather(cityName, { days: 1, aqi: false, alerts: false });
-      setFavoriteWeather((prev) => ({
-        ...prev,
-        [cityName]: {
-          temp_f: data.current.temp_f,
-          temp_c: data.current.temp_c,
-          condition: data.current.condition,
-        },
-      }));
+      const data = await fetchCurrentWeather(fav.query);
+      setFavoriteWeather((prev) => ({ ...prev, [fav.label]: data.current }));
     } catch {
-      setFavoriteWeather((prev) => ({ ...prev, [cityName]: { error: true } }));
+      setFavoriteWeather((prev) => ({ ...prev, [fav.label]: { error: true } }));
     }
   }, []);
 
-  const retryFavoriteWeather = (cityName) => {
-    setFavoriteWeather((prev) => {
-      const next = { ...prev };
-      delete next[cityName];
-      return next;
+  useEffect(() => {
+    favorites.forEach((f) => {
+      if (!favoriteWeather[f.label]) loadFavoriteWeather(f);
     });
-    fetchFavoriteWeather(cityName);
-  };
+  }, [rawFavorites]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggleFavorite = (cityName) => {
+  const isFavorite = !!place && favorites.some((f) => sameLabel(f.label, place.label));
+  const toggleFavorite = () => {
+    if (!place) return;
     setFavorites((prev) => {
-      const isFav = prev.some((c) => c.toLowerCase() === cityName.toLowerCase());
-      const next = isFav
-        ? prev.filter((c) => c.toLowerCase() !== cityName.toLowerCase())
-        : [...prev, cityName];
-      localStorage.setItem("weather_favorites", JSON.stringify(next));
-      if (!isFav) fetchFavoriteWeather(cityName);
-      return next;
+      const list = toPlaces(prev);
+      return list.some((f) => sameLabel(f.label, place.label))
+        ? list.filter((f) => !sameLabel(f.label, place.label))
+        : [...list, place];
     });
+    if (weather && !isFavorite) setFavoriteWeather((prev) => ({ ...prev, [place.label]: weather.current }));
   };
+  const removeFavorite = (label) => setFavorites((prev) => toPlaces(prev).filter((f) => !sameLabel(f.label, label)));
+  const removeRecent = (label) => setRecents((prev) => toPlaces(prev).filter((r) => !sameLabel(r.label, label)));
 
-  const isFavorite = (cityName) =>
-    favorites.some((c) => c.toLowerCase() === cityName?.toLowerCase());
+  const select = (query, label) => load(query, { label });
 
-  useEffect(() => {
-    if (!weather?.current) return;
-    const condition = weather.current.condition.text.toLowerCase();
-    if (condition.includes("sun") || condition.includes("clear")) {
-      setQuote(randomQuote("sunny"));
-    } else if (condition.includes("rain")) {
-      setQuote(randomQuote("rainy"));
-    } else if (condition.includes("cloud")) {
-      setQuote(randomQuote("cloudy"));
-    } else if (condition.includes("snow")) {
-      setQuote(randomQuote("snowy"));
-    } else {
-      setQuote(randomQuote("default"));
-    }
-  }, [weather]);
-
-  const fetchWeather = async (query, preferredLabel) => {
-    setLoading(true);
-    setError(null);
-    setShowRecents(false);
-    try {
-      const data = await fetchForecastWeather(query);
-      setWeather(data);
-      const locationLabel = preferredLabel || formatLocationLabel(data.location) || query;
-      setCity(locationLabel);
-      lastQueryRef.current = locationLabel;
-      localStorage.setItem("weather_last_city", locationLabel);
-      setRecentSearches((prev) => {
-        const next = [
-          locationLabel,
-          ...prev.filter((c) => c.toLowerCase() !== locationLabel.toLowerCase()),
-        ].slice(0, 5);
-        localStorage.setItem("weather_recent", JSON.stringify(next));
-        return next;
-      });
-    } catch (err) {
-      setError(err.message || "Could not fetch weather data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const saved = localStorage.getItem("weather_last_city");
-    if (saved) fetchWeather(saved);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    const saved = readStoredArray("weather_favorites");
-    saved.forEach(fetchFavoriteWeather);
-  }, [fetchFavoriteWeather]);
-
-  // Clean up pending timers on unmount
-  useEffect(() => {
-    return () => {
-      clearTimeout(autocompleteTimerRef.current);
-      clearTimeout(blurTimerRef.current);
-    };
-  }, []);
-
-  // Silent auto-refresh every 20 minutes
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (!lastQueryRef.current) return;
-      fetchForecastWeather(lastQueryRef.current)
-        .then(setWeather)
-        .catch(() => {});
-    }, 20 * 60 * 1000);
-    return () => clearInterval(id);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const getCurrentLocation = () => {
+  const locate = () => {
     if (!navigator.geolocation) {
-      setError("Geolocation is not supported by your browser.");
+      load("auto:ip");
       return;
     }
-    setLoading(true);
+    setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        fetchWeather(`${latitude},${longitude}`);
+      (pos) => {
+        setLocating(false);
+        load(`${pos.coords.latitude.toFixed(4)},${pos.coords.longitude.toFixed(4)}`);
       },
       () => {
-        setError("Unable to retrieve your location.");
-        setLoading(false);
+        // Permission denied or unavailable: fall back to an approximate IP lookup.
+        setLocating(false);
+        load("auto:ip");
       },
-      { timeout: 10000 }
+      { timeout: 10000, maximumAge: 10 * 60 * 1000 }
     );
   };
 
-  const getIpLocation = () => {
-    fetchWeather("auto:ip");
-  };
-
-  const handleCityInputChange = (e) => {
-    const value = e.target.value;
-    setCity(value);
-    setShowRecents(false);
-    clearTimeout(autocompleteTimerRef.current);
-    if (value.length < 2) {
-      setAutocompleteResults([]);
-      setShowAutocomplete(false);
-      setAutocompleteSearched(false);
-      return;
-    }
-    autocompleteTimerRef.current = setTimeout(async () => {
-      try {
-        const data = await searchLocations(value);
-        setAutocompleteResults(data);
-        setAutocompleteSearched(true);
-        setShowAutocomplete(true);
-      } catch {
-        // ignore autocomplete failures silently
-      }
-    }, 300);
-  };
-
-  const handleAutocompleteSelect = (result) => {
-    const label = formatLocationLabel(result);
-    setCity(label);
-    setShowAutocomplete(false);
-    setAutocompleteResults([]);
-    fetchWeather(result.id ? `id:${result.id}` : label, label);
-  };
-
-  const getWeather = () => {
-    if (!city.trim()) {
-      setError("Please enter a city name");
-      return;
-    }
-    fetchWeather(city.trim());
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      setShowAutocomplete(false);
-      getWeather();
-    }
-    if (e.key === "Escape") {
-      setShowRecents(false);
-      setShowAutocomplete(false);
-    }
-  };
-
-  const handleInputFocus = () => {
-    clearTimeout(blurTimerRef.current);
-    if (!showAutocomplete && (recentSearches.length > 0 || favorites.length > 0)) setShowRecents(true);
-  };
-
-  const handleInputBlur = () => {
-    blurTimerRef.current = setTimeout(() => {
-      setShowRecents(false);
-      setShowAutocomplete(false);
-    }, 150);
-  };
-
-  const clearRecents = () => {
-    setRecentSearches([]);
-    localStorage.removeItem("weather_recent");
-    setShowRecents(false);
-  };
-
-  const removeRecent = (item) => {
-    setRecentSearches((prev) => {
-      const next = prev.filter((c) => c !== item);
-      if (next.length === 0) localStorage.removeItem("weather_recent");
-      else localStorage.setItem("weather_recent", JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const atmosphere = weather
-    ? getAtmosphere(weather.current.condition, weather.current.is_day === 1)
-    : "default";
-  const localTime = formatLocalTime(weather?.location?.localtime);
-
-  // Theme <html> too so the body background (outside the React root)
-  // follows the atmosphere as well.
+  // Document title follows the loaded place and page
   useEffect(() => {
-    document.documentElement.dataset.atmo = atmosphere;
-  }, [atmosphere]);
+    document.title = weather
+      ? `${tempValue(weather.current, "temp", unit)}° ${weather.location.name} · ${route.label} · Weather My Way`
+      : "Weather My Way";
+  }, [weather, unit, route.label]);
+
+  const busy = status === "loading" || locating;
+  const searchProps = {
+    favorites,
+    recents,
+    favoriteWeather,
+    unit,
+    onSelect: select,
+    onLocate: locate,
+    onRemoveRecent: removeRecent,
+    busy,
+  };
+
+  const Page = route.Page;
 
   return (
-    <div
-      className="min-h-screen bg-cockpit-deep relative transition-colors duration-700"
-      data-atmo={atmosphere}
-    >
-      {/* Ambient atmosphere — sky wash, aurora, dot grid, film grain */}
-      <div className="atmosphere" aria-hidden="true">
-        <div className="sky-wash" />
-        <div className="aurora aurora-1" />
-        <div className="aurora aurora-2" />
-        <div className="noise" />
-      </div>
+    <div className="flex min-h-dvh flex-col">
+      <header className="sticky top-0 z-40 border-b border-line bg-canvas/85 backdrop-blur-lg">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
+          <Link to="/" className="flex shrink-0 items-center gap-2.5 rounded-lg" aria-label="Weather My Way home">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-white">
+              <CloudSun size={18} strokeWidth={2} aria-hidden="true" />
+            </span>
+            <span className="text-[17px] font-semibold tracking-tight text-ink">Weather My Way</span>
+          </Link>
 
-      {/* Top bar */}
-      <header className="border-b border-cockpit-border/70 bg-cockpit-deep/70 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full border border-ch-cyan/40 bg-ch-cyan/10 flex items-center justify-center shadow-glow-cyan">
-              <Zap size={14} className="text-ch-cyan" />
-            </div>
-            <h1 className="font-serif italic text-xl text-slate-100 tracking-tight">
-              Weather, <span className="text-ch-cyan">My Way</span>
-            </h1>
-            {weather && (
-              <div className="hidden md:flex items-center gap-2 ml-4 pl-4 border-l border-cockpit-border">
-                <div className="live-dot bg-ch-emerald" />
-                <span className="text-[10px] text-slate-400 font-mono tracking-[0.2em]">LIVE</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div
-              role="group"
-              aria-label="Temperature unit"
-              className="inline-flex items-center rounded-lg border border-cockpit-border bg-cockpit-panel/60 p-0.5 font-mono text-sm"
-            >
-              {["F", "C"].map((u) => {
-                const active = tempUnit === u;
+          {weather && (
+            <nav aria-label="Pages" className="ml-4 hidden items-center gap-1 md:flex">
+              {ROUTES.map((r) => {
+                const active = r === route;
                 return (
-                  <button
-                    key={u}
-                    onClick={() => setTempUnit(u)}
-                    aria-pressed={active}
-                    aria-label={`Show temperatures in degrees ${u === "F" ? "Fahrenheit" : "Celsius"}`}
-                    className={`px-2.5 py-1 rounded-md font-medium transition-all ${
-                      active
-                        ? "bg-ch-cyan/15 text-ch-cyan shadow-glow-cyan"
-                        : "text-slate-500 hover:text-slate-300"
+                  <Link
+                    key={r.to}
+                    to={r.to}
+                    aria-current={active ? "page" : undefined}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                      active ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"
                     }`}
                   >
-                    °{u}
-                  </button>
+                    {r.label}
+                  </Link>
                 );
               })}
-            </div>
-            <button
-              onClick={getCurrentLocation}
-              disabled={loading}
-              aria-label="Use my current location"
-              className="cockpit-btn px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm disabled:opacity-40"
-            >
-              <Compass size={14} />
-              <span className="hidden sm:inline">Locate</span>
-            </button>
-            <button
-              onClick={getIpLocation}
-              disabled={loading}
-              aria-label="Use IP-based location"
-              className="cockpit-btn px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm disabled:opacity-40"
-            >
-              <Globe2 size={14} />
-              <span className="hidden sm:inline">IP</span>
-            </button>
-          </div>
-        </div>
-      </header>
+            </nav>
+          )}
 
-      <main className="max-w-7xl mx-auto px-4 py-6 relative z-10">
-        {/* Landing headline (no weather loaded) */}
-        {!weather && !loading && (
-          <div className="text-center mt-8 sm:mt-16 mb-10 animate-fade-in-up">
-            <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-ch-cyan mb-6">
-              Weather, My Way
-            </p>
-            <h2 className="font-serif text-5xl sm:text-7xl leading-[1.02] text-slate-100">
-              The sky,
-              <br />
-              <span className="italic hero-gradient-text">on your terms.</span>
-            </h2>
-            <p className="mt-6 text-base text-slate-400 font-serif italic max-w-md mx-auto">
-              "{quote}"
-            </p>
-          </div>
-        )}
+          <div className="flex-1" />
 
-        {/* Search section */}
-        <div className="max-w-2xl mx-auto mb-8 animate-fade-in-up relative z-20">
-
-          <div className="relative">
-            <label htmlFor="city-search" className="sr-only">
-              Search by city, zip code, or location
-            </label>
-            <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-              <MapPin className="text-slate-500" size={16} />
-            </div>
-            <input
-              id="city-search"
-              type="text"
-              placeholder="City, zip, coordinates, IATA, or METAR"
-              value={city}
-              onChange={handleCityInputChange}
-              onKeyDown={handleKeyDown}
-              onFocus={handleInputFocus}
-              onBlur={handleInputBlur}
-              autoComplete="off"
-              className="w-full pl-10 pr-28 py-3.5 rounded-2xl bg-cockpit-panel/70 backdrop-blur-md border border-cockpit-border text-slate-100 placeholder-slate-500 font-mono text-sm focus:outline-none focus:border-ch-cyan focus:shadow-glow-cyan transition-all"
-            />
-            <button
-              onClick={getWeather}
-              disabled={loading}
-              aria-label="Search weather"
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-ch-cyan-dim to-ch-cyan text-cockpit-deep font-semibold text-sm py-2 px-4 rounded-xl flex items-center gap-1.5 hover:shadow-glow-cyan disabled:opacity-40 transition-all"
-            >
-              {loading ? (
-                <span className="inline-block h-4 w-4 rounded-full border-2 border-cockpit-deep border-t-transparent animate-spin" />
-              ) : (
-                <Search size={14} />
-              )}
-              Search
-            </button>
-
-            {/* Autocomplete dropdown */}
-            {showAutocomplete && autocompleteSearched && (
-              <div className="absolute top-full left-0 right-0 z-10 mt-2 glass-panel overflow-y-auto max-h-[min(60vh,24rem)]">
-                <div className="px-4 py-2 border-b border-cockpit-border">
-                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">Suggestions</span>
-                </div>
-                {autocompleteResults.length > 0 ? (
-                  autocompleteResults.map((result) => (
-                    <button
-                      key={result.id}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => handleAutocompleteSelect(result)}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
-                    >
-                      <MapPin size={12} className="text-ch-cyan flex-shrink-0" />
-                      <span className="text-sm text-slate-200 font-mono">{result.name}</span>
-                      <span className="text-xs text-slate-500 font-mono ml-1">
-                        {result.region ? `${result.region}, ` : ''}{result.country}
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-4 py-4 flex items-center gap-2 text-xs font-mono text-slate-500">
-                    <Search size={12} className="text-slate-600 flex-shrink-0" />
-                    <span>
-                      No matches for <span className="text-slate-300">"{city}"</span>. Try a city, zip code, or "lat,lon".
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Recent searches + favorites dropdown */}
-            {!showAutocomplete && showRecents && (recentSearches.length > 0 || favorites.length > 0) && (
-              <div className="absolute top-full left-0 right-0 z-10 mt-2 glass-panel overflow-y-auto max-h-[min(60vh,24rem)]">
-                {/* Favorites section */}
-                {favorites.length > 0 && (
-                  <>
-                    <div className="px-4 py-2 border-b border-cockpit-border flex items-center gap-1.5">
-                      <Star size={10} className="text-ch-amber" fill="currentColor" />
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">Favorites</span>
-                    </div>
-                    {favorites.map((fav) => {
-                      const fw = favoriteWeather[fav];
-                      return (
-                        <button
-                          key={fav}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => { setCity(fav); fetchWeather(fav); setShowRecents(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
-                        >
-                          <Star size={12} className="text-ch-amber flex-shrink-0" fill="currentColor" />
-                          <span className="text-sm text-slate-200 font-mono flex-1">{fav}</span>
-                          {fw && !fw.error && (
-                            <span className="text-xs font-mono text-slate-500 flex items-center gap-1">
-                              {getWeatherIcon(fw.condition, 12)}
-                              {tempUnit === "F" ? `${fw.temp_f}°F` : `${fw.temp_c}°C`}
-                            </span>
-                          )}
-                          {fw?.error && (
-                            <span className="text-[10px] font-mono text-ch-red/80" title="Failed to load">—</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </>
-                )}
-
-                {/* Recents section */}
-                {recentSearches.length > 0 && (
-                  <>
-                    <div className="flex items-center justify-between px-4 py-2 border-b border-cockpit-border">
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">Recent</span>
-                      <button
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={clearRecents}
-                        className="text-xs text-slate-500 hover:text-ch-red transition-colors flex items-center gap-1"
-                        aria-label="Clear recent searches"
-                      >
-                        <X size={10} /> Clear
-                      </button>
-                    </div>
-                    {recentSearches.map((recent) => (
-                      <div
-                        key={recent}
-                        className="group flex items-center pr-2 hover:bg-white/5 transition-colors"
-                      >
-                        <button
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => { setCity(recent); fetchWeather(recent); }}
-                          className="flex-1 flex items-center gap-3 px-4 py-2.5 text-left"
-                        >
-                          <Clock size={12} className="text-slate-500 flex-shrink-0" />
-                          <span className="text-sm text-slate-300 font-mono">{recent}</span>
-                        </button>
-                        <button
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={(e) => { e.stopPropagation(); removeRecent(recent); }}
-                          aria-label={`Remove ${recent} from recent searches`}
-                          className="p-1.5 rounded text-slate-600 hover:text-ch-red opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {error && (
-            <div className="mt-4 glass-panel border-ch-red/30 p-4 flex items-center gap-3" role="alert">
-              <div className="w-2 h-2 rounded-full bg-ch-red animate-pulse flex-shrink-0" />
-              <p className="text-sm text-ch-red font-mono">{error}</p>
+          {weather && (
+            <div className="hidden w-72 md:block lg:w-80">
+              <LocationSearch {...searchProps} />
             </div>
           )}
+          <UnitToggle unit={unit} onChange={setUnit} />
         </div>
 
-        {/* Initial-load skeleton */}
-        {loading && !weather && (
-          <div className="max-w-7xl mx-auto animate-fade-in-up" aria-live="polite" aria-busy="true">
-            <span className="sr-only">Loading weather data…</span>
-            {/* Station header skeleton */}
-            <div className="glass-panel p-5 mb-6">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                  <div className="skeleton w-[72px] h-[72px] rounded-xl" />
-                  <div className="flex-1 space-y-2">
-                    <div className="skeleton h-5 w-40 rounded" />
-                    <div className="skeleton h-3 w-28 rounded" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-6">
-                  <div className="space-y-2 text-right">
-                    <div className="skeleton h-10 w-24 rounded ml-auto" />
-                    <div className="skeleton h-3 w-20 rounded ml-auto" />
-                  </div>
-                  <div className="hidden sm:flex flex-col gap-2 pl-6 border-l border-cockpit-border">
-                    <div className="skeleton h-3 w-16 rounded" />
-                    <div className="skeleton h-3 w-16 rounded" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* Tab bar skeleton */}
-            <div className="glass-panel p-2 mb-4 flex gap-2">
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="skeleton h-8 flex-1 rounded-md" />
-              ))}
-            </div>
-            {/* Forecast strips skeleton */}
-            <div className="space-y-3">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="glass-panel p-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="skeleton w-12 h-12 rounded-lg" />
-                    <div className="space-y-2 flex-1">
-                      <div className="skeleton h-4 w-24 rounded" />
-                      <div className="skeleton h-3 w-32 rounded" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="skeleton h-4 w-10 rounded" />
-                    <div className="skeleton h-4 w-10 rounded" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Favorites row (no weather loaded) */}
-        {!weather && !loading && favorites.length > 0 && (
-          <div className="max-w-4xl mx-auto glass-panel p-6 mb-4 animate-fade-in-up-2">
-            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest font-mono mb-4 flex items-center gap-2">
-              <Star size={14} className="text-ch-amber" fill="currentColor" />
-              Favorites
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {favorites.map((fav) => {
-                const fw = favoriteWeather[fav];
-                const hasData = fw && !fw.error;
-                return (
-                  <div key={fav} className="relative">
-                    <button
-                      onClick={() => { setCity(fav); fetchWeather(fav); }}
-                      className="cockpit-btn w-full rounded-lg px-4 py-3 text-left flex flex-col gap-1"
-                    >
-                      <span className="text-sm font-display truncate w-full">{fav}</span>
-                      {hasData && (
-                        <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400">
-                          {getWeatherIcon(fw.condition, 12)}
-                          <span>{tempUnit === "F" ? `${fw.temp_f}°F` : `${fw.temp_c}°C`}</span>
-                        </div>
-                      )}
-                      {!fw && (
-                        <span className="text-xs font-mono text-slate-600">Loading…</span>
-                      )}
-                      {fw?.error && (
-                        <span className="text-xs font-mono text-ch-red/80 flex items-center gap-1">
-                          <X size={10} aria-hidden="true" />
-                          Failed to load
-                        </span>
-                      )}
-                    </button>
-                    {fw?.error && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); retryFavoriteWeather(fav); }}
-                        aria-label={`Retry loading weather for ${fav}`}
-                        className="absolute top-1.5 right-1.5 text-[10px] font-mono text-slate-500 hover:text-ch-cyan transition-colors px-1.5 py-0.5 rounded border border-cockpit-border bg-cockpit-deep/70"
-                      >
-                        Retry
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Popular destinations (no weather loaded) */}
-        {!weather && !loading && (
-          <div className="max-w-4xl mx-auto glass-panel p-6 mb-8 animate-fade-in-up-2">
-            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest font-mono mb-4 flex items-center gap-2">
-              <Radio size={14} className="text-ch-cyan" />
-              Popular Stations
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {["New York", "London", "Tokyo", "Sydney", "Paris", "Dubai", "Cape Town", "Rio de Janeiro"].map(
-                (popularCity) => (
-                  <button
-                    key={popularCity}
-                    onClick={() => {
-                      setCity(popularCity);
-                      fetchWeather(popularCity);
-                    }}
-                    className="cockpit-btn rounded-lg px-4 py-3 text-center text-sm font-display"
-                  >
-                    {popularCity}
-                  </button>
-                )
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Weather data display — Living Sky single-scroll experience */}
         {weather && (
-          <LivingSkyLayout
+          <div className="px-4 pb-3 md:hidden">
+            <LocationSearch {...searchProps} />
+          </div>
+        )}
+      </header>
+
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-28 pt-5 sm:px-6 sm:pt-8 md:pb-12">
+        {error && <ErrorBanner message={error} onDismiss={clearError} onRetry={place ? () => load(place.query, { label: place.label }) : null} />}
+
+        {weather ? (
+          <Page
+            key={`${weather.location.lat},${weather.location.lon}`}
             weather={weather}
-            tempUnit={tempUnit}
-            atmosphere={atmosphere}
-            toggleFavorite={toggleFavorite}
+            yesterday={yesterday}
+            unit={unit}
             isFavorite={isFavorite}
+            onToggleFavorite={toggleFavorite}
+          />
+        ) : status === "loading" ? (
+          <LoadingSkeleton />
+        ) : (
+          <Welcome
+            searchProps={searchProps}
+            favorites={favorites}
+            favoriteWeather={favoriteWeather}
+            unit={unit}
+            onSelect={select}
+            onLocate={locate}
+            onRemoveFavorite={removeFavorite}
+            locating={locating}
           />
         )}
-
-        {/* Footer */}
-        <footer className="max-w-7xl mx-auto mt-16 pt-5 border-t border-cockpit-border/60 text-center">
-          <p className="font-serif italic text-sm text-slate-500 mb-1.5">Whatever the sky brings.</p>
-          <p className="text-xs text-slate-600 font-mono">
-            Powered by{" "}
-            <a
-              href="https://www.weatherapi.com/"
-              title="Weather API"
-              className="text-ch-cyan-dim hover:text-ch-cyan transition-colors"
-            >
-              WeatherAPI.com
-            </a>
-          </p>
-        </footer>
       </main>
+
+      <footer className="mx-auto w-full max-w-6xl px-4 pb-28 text-center text-xs text-faint sm:px-6 md:pb-8">
+        Weather data from{" "}
+        <a href="https://www.weatherapi.com/" className="underline underline-offset-2 hover:text-muted">
+          WeatherAPI.com
+        </a>{" "}
+        · refreshes every 15 minutes
+      </footer>
+
+      {weather && (
+        <nav
+          aria-label="Pages"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden"
+        >
+          <div className="mx-auto grid max-w-md grid-cols-3">
+            {ROUTES.map((r) => {
+              const active = r === route;
+              return (
+                <Link
+                  key={r.to}
+                  to={r.to}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${
+                    active ? "text-accent" : "text-muted"
+                  }`}
+                >
+                  <r.icon size={22} strokeWidth={active ? 2.2 : 1.75} aria-hidden="true" />
+                  {r.label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
 
-export default App;
+function ErrorBanner({ message, onDismiss, onRetry }) {
+  return (
+    <div
+      role="alert"
+      className="mb-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100"
+    >
+      <p className="flex-1 pt-0.5">{message}</p>
+      {onRetry && (
+        <button type="button" onClick={onRetry} className="flex items-center gap-1 font-medium hover:underline">
+          <RotateCw size={14} aria-hidden="true" /> Retry
+        </button>
+      )}
+      <button type="button" onClick={onDismiss} aria-label="Dismiss error" className="rounded p-0.5 opacity-70 hover:opacity-100">
+        <X size={16} />
+      </button>
+    </div>
+  );
+}
+
+function Welcome({ searchProps, favorites, favoriteWeather, unit, onSelect, onLocate, onRemoveFavorite, locating }) {
+  return (
+    <div className="rise mx-auto max-w-2xl pt-6 sm:pt-14">
+      <div className="text-center">
+        <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-5xl">What's it like out there?</h1>
+        <p className="mx-auto mt-3 max-w-md text-base text-muted sm:text-lg">
+          Current conditions, the next few hours, and the days ahead, for anywhere.
+        </p>
+      </div>
+
+      <div className="mt-8">
+        <LocationSearch {...searchProps} size="lg" autoFocus />
+      </div>
+      <div className="mt-3 flex justify-center">
+        <button
+          type="button"
+          onClick={onLocate}
+          disabled={locating}
+          className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/10 disabled:opacity-60"
+        >
+          <LocateFixed size={16} aria-hidden="true" />
+          {locating ? "Finding you…" : "Use my current location"}
+        </button>
+      </div>
+
+      {favorites.length > 0 && (
+        <section className="mt-10">
+          <h2 className="mb-3 flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-muted">
+            <Star size={14} className="text-warm" fill="currentColor" aria-hidden="true" /> Favorites
+          </h2>
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {favorites.map((f) => {
+              const fw = favoriteWeather[f.label];
+              return (
+                <li key={f.label} className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(f.query, f.label)}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 text-left shadow-card transition-colors hover:bg-subtle"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium text-ink">{f.label.split(",")[0]}</span>
+                      <span className="block truncate text-xs text-faint">{f.label.split(",").slice(1).join(",").trim()}</span>
+                    </span>
+                    {fw && !fw.error ? (
+                      <span className="tabular flex items-center gap-2 text-lg font-semibold text-ink">
+                        <WeatherIcon condition={fw.condition} isDay={fw.is_day} size={22} />
+                        {Math.round(unit === "F" ? fw.temp_f : fw.temp_c)}°
+                      </span>
+                    ) : (
+                      <span className="text-xs text-faint">{fw?.error ? "Unavailable" : "…"}</span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveFavorite(f.label)}
+                    aria-label={`Remove ${f.label} from favorites`}
+                    className="absolute -right-2 -top-2 hidden rounded-full border border-line bg-surface p-1 text-faint shadow-card hover:text-ink group-hover:block focus:block"
+                  >
+                    <X size={12} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      <section className="mt-10">
+        <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-wide text-muted">Or try</h2>
+        <div className="flex flex-wrap gap-2">
+          {POPULAR.map((city) => (
+            <button
+              key={city}
+              type="button"
+              onClick={() => onSelect(city)}
+              className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm text-ink transition-colors hover:border-faint"
+            >
+              {city}
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div aria-busy="true" aria-live="polite" className="space-y-4 sm:space-y-5">
+      <span className="sr-only">Loading weather…</span>
+      <div className="skeleton h-72 !rounded-3xl sm:h-80" />
+      <div className="skeleton h-56 !rounded-2xl" />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="skeleton h-28 !rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  );
+}

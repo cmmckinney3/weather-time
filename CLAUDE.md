@@ -1,111 +1,92 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. `AGENTS.md` carries the same content for other coding agents, so keep the two in sync.
 
 ## Development Commands
 
-- **Start development server**: `npm start` (opens at http://localhost:5173)
-- **Build for production**: `npm run build` (outputs to `dist/` folder)
+- **Start development server**: `npm start` (http://localhost:5173)
+- **Run tests**: `npm test` (Vitest, watch mode) or `npx vitest run`
+- **Build for production**: `npm run build` (outputs to `dist/`, deployed via Firebase Hosting)
 - **Preview production build**: `npm run preview`
 
-## Architecture Overview
+## Stack
 
-This is a React weather application built with Vite, using the WeatherAPI.com service for data.
+React 19 · Vite 8 · Tailwind CSS 4 (configured in CSS via `@theme`, no `tailwind.config.js`) · Lucide icons · Vitest + Testing Library. No router or chart library: both are small hand-written pieces (see below).
 
-### Key Components Structure
+## Product shape
 
-- **App.jsx**: Main application component — weather data fetching, geolocation, search, autocomplete, favorites, and state management
-- **WeatherAppLayout.jsx**: Navigation wrapper with tabbed interface for different weather views
-- **WeatherDashboard.jsx**: Expandable card-based forecast view with detailed hourly data
-- **DetailedForecast.jsx**: Chart-based temperature visualization using Recharts with tabbed day selection
-- **WeatherConditionsWidget.jsx**: Instrument panel with gauges, detailed metrics, AQI, alerts, and wind compass
-- **WindCompass.jsx**: SVG compass rose widget with animated needle showing wind direction
+Three pages, each with one job:
 
-### Data Flow
+| Route | Page | Purpose |
+|-------|------|---------|
+| `/` | `src/pages/NowPage.jsx` | Weather right now + near future: condition-tinted hero, plain-language summary of the next 12 h, next-24-hours timeline, 4 quick facts (precip, wind, next sunrise/sunset, air quality), 3-day outlook |
+| `/forecast` | `src/pages/ForecastPage.jsx` | Full hourly timeline (all remaining forecast hours, day chips jump within it) + a detail card per day |
+| `/details` | `src/pages/DetailsPage.jsx` | Everything not "is it nice out": alerts, air quality + pollutants, UV, wind dial, humidity/dew point, feels-like, pressure trend, visibility, precip totals, yesterday comparison, sun arc, moon phase, location |
 
-1. User searches by city/zip/coordinates or uses geolocation in `App.jsx`
-2. Autocomplete suggestions fetched from WeatherAPI `/v1/search.json` (debounced, 300ms)
-3. `App.jsx` fetches weather from WeatherAPI forecast endpoint (3-day, AQI, alerts)
-4. Weather data is processed and filtered to show current day onwards
-5. Data is passed down to weather components via `WeatherAppLayout`
-6. Each component displays different aspects of the same weather data
+With no location loaded, `App.jsx` shows a welcome screen (search, use my location, favorites, popular cities).
 
-### Styling and UI
+## Architecture
 
-- **Tailwind CSS**: Primary styling framework with custom theme ("atmospheric observatory" aesthetic)
-- **Lucide React**: Icon library for weather icons and UI elements
-- **Responsive design**: Mobile-first approach with responsive grids and layouts
-- **Weather-reactive theming**: `getAtmosphere(condition, isDay)` in `weatherUtils.jsx` maps live conditions to a theme key (`clear-day`, `clear-night`, `rain`, `snow`, `storm`, `cloud`, `fog`) set as `data-atmo` on the app root. CSS variables in `index.css` (RGB triplets: `--surface-*`, `--accent`, `--aurora-*`) re-tint surfaces, the primary accent (`ch-cyan` token), glows, and the ambient aurora background per atmosphere. Tailwind tokens in `tailwind.config.js` read these vars via `rgb(var(...) / <alpha-value>)` so opacity modifiers keep working
-- **Typography**: Instrument Serif (italic display — hero temp, headlines, wordmark), Hanken Grotesk (`font-display` body sans), JetBrains Mono (data readouts/labels)
-- **Ambient layers**: `.atmosphere` fixed background (aurora washes + dot grid + SVG film grain), `.hero-panel`/`.glass-panel` glassmorphism with inner highlights
-- **Charts/SVG follow the accent**: Recharts lines and the WindCompass use `currentColor` under a `text-ch-cyan` parent so they track the active atmosphere
+```
+src/
+  App.jsx                 Shell: header (brand, desktop tabs, search, °F/°C), mobile bottom tab bar,
+                          welcome/loading/error states, favorites + recents, geolocation
+  lib/weather.js          ALL data shaping: unit formatting, local-time parsing, condition kinds,
+                          summaries, scales (AQI/UV/Beaufort/dew point), sun & moon math. Pure + tested.
+  lib/router.jsx          ~40-line pathname router (usePath, navigate, <Link>)
+  hooks/useWeather.js     Fetches forecast (+ yesterday via history.json), silent 15-min refresh,
+                          refresh on tab focus when stale, aborts superseded requests
+  hooks/useStoredState.js localStorage-backed useState (tolerates blocked storage and legacy raw strings)
+  services/weatherApi.js  WeatherAPI.com client: forecast, search, current, history
+  components/
+    HourlyChart.jsx       Scrollable hour columns + SVG temperature curve, precip bars, optional wind row/day chips
+    LocationSearch.jsx    Accessible combobox: autocomplete, use-my-location, favorites (live temps), recents
+    WeatherIcon.jsx       Condition code -> Lucide icon + color
+    Gauges.jsx            WindDial, MoonPhase, SunArc (SVG)
+    ui.jsx                Card, CardHeader, PageHeader, TextLink, UnitToggle, RangeBar, ScaleBar, Stat
+  pages/                  NowPage, ForecastPage, DetailsPage
+  test/fixtures.js        makeWeather(): WeatherAPI-shaped response builder for tests
+```
 
-### Weather Data Integration
+`src/pages/QwenWeather/` and `src/router.jsx` are an older, untracked experiment. The app does not import them, and `index.css` excludes them from Tailwind scanning.
 
-- **API**: WeatherAPI.com — key read from `VITE_API_KEY` environment variable (see `.env.example`)
-- **Forecast endpoint**: `/v1/forecast.json?days=3&aqi=yes&alerts=yes`
-- **Autocomplete endpoint**: `/v1/search.json?q=<query>` — used for city suggestions as user types
-- **Favorite weather endpoint**: `/v1/forecast.json?days=1` — lightweight fetch for favorites live data
-- **Location handling**: Supports text search, zip codes, and `lat,lon` coordinates
+### Conventions
 
-### State Management
+- **Never pass WeatherAPI local time strings through `Date` for display.** `"2026-11-17 15:00"` is the *location's* wall clock; use `parseLocal`, `formatHour`, `formatClock`, `dayName` from `lib/weather.js` so labels don't shift into the viewer's timezone.
+- **Units**: one `unit` ("F" | "C") flows from `App` to every page. F means mph, in, mi, inHg; C means km/h, mm, km, hPa. Use the `temp/speed/precip/distance/pressure` helpers rather than reading `_f`/`_c` fields directly.
+- **Conditions**: use `conditionKind(condition)` (code-based, text fallback) instead of string-matching condition text.
+- **Data logic goes in `lib/weather.js` with a test in `lib/weather.test.js`**; components stay presentational.
 
-- Local component state using React hooks throughout
-- `App.jsx` owns: weather data, loading/error, city input, autocomplete, recent searches, favorites, favorite weather cache, temp unit
-- `WeatherAppLayout.jsx`: active tab selection
-- `WeatherDashboard.jsx`: expandable day card state
-- `DetailedForecast.jsx`: selected day tab
-- `WeatherConditionsWidget.jsx`: expanded alert state
+### Styling
 
-### localStorage Keys
+- Design tokens are CSS variables in `src/index.css` (`--canvas`, `--surface`, `--subtle`, `--line`, `--ink`, `--muted`, `--faint`, `--accent`, `--rain`, `--warm`, `--cool`), exposed to Tailwind via `@theme inline` as `bg-surface`, `text-muted`, `border-line`, etc. Light/dark switches automatically with `prefers-color-scheme`; `dark:` variants also follow the system setting.
+- The Now hero is the one expressive element: `.sky .sky-<theme>` gradients keyed by `skyTheme(condition, isDay)`.
+- Inter with `.tabular` (tabular numerals) for every number readout. Section titles are `CardHeader` (small uppercase muted).
+- Mobile-first. Pages get a bottom tab bar under `md`, header tabs at `md+`. Keep the 390px width working.
+- SVG visuals use CSS variables (`var(--warm)`, `var(--line)`, ...) so they follow the theme.
+
+## WeatherAPI.com (free plan)
+
+- Key: `VITE_API_KEY` in `.env` (see `.env.example`). It is bundled into the client, so it is not a secret.
+- `forecast.json?days=3&aqi=yes&alerts=yes`: the free plan returns **3 days max** (asking for more still returns 3). Includes hourly data, astro, current air quality, and alerts.
+- `history.json?dt=YYYY-MM-DD`: used for yesterday's comparison (free plan covers the last 7 days).
+- `current.json`: lightweight live temps for favorites.
+- `search.json`: autocomplete (debounced 250ms, aborted on new input).
+- **Not on the free plan**: pollen, forecast-day/hourly air quality, more than 3 forecast days. The UI must not promise these.
+
+## localStorage keys
 
 | Key | Contents |
 |-----|----------|
-| `weather_last_city` | Last searched city string |
-| `weather_recent` | JSON array of recent search strings (max 5) |
-| `weather_favorites` | JSON array of favorited city name strings |
+| `weather_last_city` | `{ label, query }` of the last loaded place (older builds stored a plain string, still accepted) |
+| `weather_recent` | Array of `{ label, query }`, max 5 (plain strings accepted) |
+| `weather_favorites` | Array of `{ label, query }` (plain strings accepted) |
+| `weather_unit` | `"F"` or `"C"` |
 
-## Code Architecture & Utilities
+`query` is what gets sent to the API (`id:123` from autocomplete, `lat,lon` from geolocation); `label` is what is shown. `auto:ip` lookups are saved as resolved coordinates.
 
-### Shared Utilities (`src/utils/weatherUtils.jsx`)
-- **`getWeatherIcon(condition, size)`** - Consistent weather icon rendering across components
-- **`formatTime(dateTimeStr)`** - Standardized time formatting for hourly data
-- **`getDayName(index, dateStr)` / `getShortDayName()`** - Consistent day labeling
-- **`filterHourlyData(hourlyData, dayIndex)`** - Filters past hours for today's view
-- **`getPrecipitationSummary(dayData)`** - Extracts precipitation data from API response
-- **`getPrecipitationIntensity(chanceOfRain)`** - Color-coded precipitation risk levels
-- **`getWeatherRecommendation(current, today)`** - Activity recommendations with precipitation awareness
+## Ideas not yet built
 
-### Shared Components (`src/components/shared/`)
-- **`PrecipitationInfo.jsx`** - Reusable precipitation display
-  - `PrecipitationInfo` - Detailed precipitation summary
-  - `HourlyPrecipIndicator` - Compact hourly precipitation display
-
-### WindCompass Component (`src/components/WindCompass.jsx`)
-- Props: `windDegree` (0–360), `windDir` (string e.g. "NNW")
-- SVG compass rose with animated needle using CSS transitions
-- Uses `transformBox: fill-box` + `transformOrigin: center` for cross-browser SVG rotation (Safari/Firefox compatible)
-- Amber needle tip = wind source direction; slate tail = opposite
-
-## Features
-
-### Search & Navigation
-- City/zip/coordinates text search + browser geolocation
-- **Autocomplete**: debounced suggestions from WeatherAPI as user types (≥2 chars)
-- **Recent Searches**: last 5 searches persisted in localStorage, shown on input focus
-- **Favorites**: star any loaded city; favorites panel shown on pre-search screen and in the search dropdown (always accessible)
-- Favorites display live temp + condition icon (fetched on load)
-- Temperature unit toggle (°F / °C)
-
-### Weather Views (tabs)
-- **Dashboard**: 3-day expandable cards with hourly breakdown, astronomical data
-- **Forecast**: hourly temperature chart (actual vs feels-like), day selector tabs
-- **Conditions**: gauge instruments (humidity, UV, wind, cloud), wind direction compass, metrics grid, AQI, weather alerts
-- **Precipitation**: timeline/intensity/daily chart views
-
-## Development Notes
-
-- API key must be set in `.env` as `VITE_API_KEY` (copy from `.env.example`)
-- No test files currently exist beyond Vite scaffold defaults
-- Hourly data filtering shows only future hours for current day (`filterHourlyData`)
-- The `RadialGauge` component in `WeatherConditionsWidget.jsx` requires a `relative`-positioned parent at call sites for its absolute-positioned center label
+- Precipitation radar / map page (the previous Leaflet + NOAA radar implementation is in git history before the redesign)
+- Manual light/dark override (currently follows the system)
+- Shareable `?q=` location URLs
